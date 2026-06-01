@@ -65,12 +65,10 @@ export async function POST() {
   const model = process.env.SYNTHESIS_MODEL ?? "claude-sonnet-4-6";
   const userContent = JSON.stringify({ branches });
 
-  async function callModel(prefill: boolean): Promise<string> {
-    const messages: Anthropic.MessageParam[] = [
-      { role: "user", content: userContent },
-    ];
-    if (prefill) messages.push({ role: "assistant", content: "{" });
-
+  // 주의: 일부 최신 모델(claude-sonnet-4-6 등)은 assistant 프리필을 지원하지 않는다
+  // ("conversation must end with a user message"). 따라서 프리필 없이 호출하고,
+  // 시스템 프롬프트의 "JSON만 출력" 지시 + tryParse(펜스 제거)로 JSON을 회수한다.
+  async function callModel(): Promise<string> {
     const msg = await anthropic.messages.create({
       model,
       max_tokens: 1500,
@@ -81,11 +79,10 @@ export async function POST() {
           cache_control: { type: "ephemeral" }, // 긴 시스템 프롬프트 캐싱
         },
       ],
-      messages,
+      messages: [{ role: "user", content: userContent }],
     });
 
-    const text = extractText(msg);
-    return prefill ? "{" + text : text;
+    return extractText(msg);
   }
 
   function tryParse(raw: string): SynthesisResult | null {
@@ -100,8 +97,8 @@ export async function POST() {
 
   let result: SynthesisResult | null = null;
   try {
-    result = tryParse(await callModel(true)); // 1차: JSON 프리필
-    if (!result) result = tryParse(await callModel(false)); // 재시도: 프리필 없이
+    result = tryParse(await callModel()); // 1차
+    if (!result) result = tryParse(await callModel()); // 재시도(JSON 파싱 실패 시)
   } catch (e) {
     return Response.json(
       {
