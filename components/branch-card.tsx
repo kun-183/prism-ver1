@@ -20,18 +20,27 @@ function timeAgo(iso: string): string {
 export function BranchCard({
   branch,
   index,
+  currentUserId,
   selected,
   onToggleSelect,
   onCommentCreated,
+  onBranchDeleted,
+  onCommentDeleted,
 }: {
   branch: Branch;
   index: number;
+  currentUserId: string;
   selected: boolean;
   onToggleSelect: () => void;
   onCommentCreated: (comment: Comment) => void;
+  onBranchDeleted: (branchId: string) => void;
+  onCommentDeleted: (commentId: string) => void;
 }) {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const ownBranch = branch.author_id === currentUserId;
 
   async function addComment() {
     const trimmed = body.trim();
@@ -50,6 +59,40 @@ export function BranchCard({
       setBody("");
       onCommentCreated(data as Comment);
     }
+  }
+
+  async function deleteBranch() {
+    if (deleting) return;
+    const n = branch.comments.length;
+    const msg =
+      n > 0
+        ? `이 가지를 삭제하면 잔가지 ${n}개도 함께 삭제됩니다. 계속할까요?`
+        : "이 가지를 삭제할까요?";
+    if (!window.confirm(msg)) return;
+
+    setDeleting(true);
+    const supabase = createClient();
+    // 잔가지는 FK on delete cascade 로 함께 삭제됨.
+    const { error } = await supabase
+      .from("branches")
+      .delete()
+      .eq("id", branch.id);
+    setDeleting(false);
+    if (!error) onBranchDeleted(branch.id);
+    else window.alert("삭제에 실패했습니다. 본인이 만든 가지만 삭제할 수 있어요.");
+  }
+
+  async function deleteComment(comment: Comment) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", comment.id);
+    if (!error) onCommentDeleted(comment.id);
+    else
+      window.alert(
+        "잔가지 삭제에 실패했습니다. 본인이 만든 잔가지만 삭제할 수 있어요.",
+      );
   }
 
   return (
@@ -77,14 +120,38 @@ export function BranchCard({
             {timeAgo(branch.created_at)}
           </p>
         </div>
+        {ownBranch && (
+          <button
+            onClick={deleteBranch}
+            disabled={deleting}
+            aria-label="가지 삭제"
+            title="가지 삭제 (잔가지 포함)"
+            className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+          >
+            🗑
+          </button>
+        )}
       </div>
 
       {branch.comments.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-l-2 border-muted pl-4">
           {branch.comments.map((c) => (
-            <li key={c.id} className="text-sm text-foreground/80">
+            <li
+              key={c.id}
+              className="group flex items-start gap-1.5 text-sm text-foreground/80"
+            >
               <span className="text-muted-foreground">└ </span>
-              {c.body}
+              <span className="flex-1">{c.body}</span>
+              {c.author_id === currentUserId && (
+                <button
+                  onClick={() => deleteComment(c)}
+                  aria-label="잔가지 삭제"
+                  title="잔가지 삭제"
+                  className="shrink-0 rounded px-1 text-xs text-muted-foreground/0 transition-colors hover:text-red-600 group-hover:text-muted-foreground/60"
+                >
+                  ✕
+                </button>
+              )}
             </li>
           ))}
         </ul>

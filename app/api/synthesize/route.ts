@@ -74,9 +74,19 @@ export async function POST(request: Request) {
       ? allBranches.filter((b) => selectedIds.includes(b.id))
       : allBranches;
 
-  if (branches.length < 2) {
+  if (branches.length === 0) {
     return Response.json(
-      { error: "합성하려면 가지를 최소 2개 선택해야 합니다." },
+      { error: "합성할 가지를 선택하세요." },
+      { status: 400 },
+    );
+  }
+  // 단일 가지는 잔가지(반대·확장 의견)가 있어야 내부 합성이 성립한다.
+  if (branches.length === 1 && branches[0].comments.length < 1) {
+    return Response.json(
+      {
+        error:
+          "가지를 하나만 선택했다면, 그 가지에 잔가지가 최소 1개 있어야 합성할 수 있습니다.",
+      },
       { status: 400 },
     );
   }
@@ -87,12 +97,11 @@ export async function POST(request: Request) {
     MODEL_MAP[body.model ?? ""] ??
     process.env.SYNTHESIS_MODEL ??
     "claude-sonnet-4-6";
-  const userContent = JSON.stringify({ branches });
 
   // 주의: 일부 최신 모델(claude-sonnet-4-6 등)은 assistant 프리필을 지원하지 않는다
   // ("conversation must end with a user message"). 따라서 프리필 없이 호출하고,
   // 시스템 프롬프트의 "JSON만 출력" 지시 + tryParse(펜스 제거)로 JSON을 회수한다.
-  async function callModel(): Promise<string> {
+  async function callModel(userContent: string): Promise<string> {
     const msg = await anthropic.messages.create({
       model,
       max_tokens: 1500,
@@ -119,10 +128,52 @@ export async function POST(request: Request) {
     }
   }
 
+  // 입력 묶음 1회 합성(파싱 실패 시 1회 재시도).
+  async function synthesize(
+    inputs: BranchInput[],
+  ): Promise<SynthesisResult | null> {
+    const content = JSON.stringify({ branches: inputs });
+    let r = tryParse(await callModel(content));
+    if (!r) r = tryParse(await callModel(content));
+    return r;
+  }
+
+  // ── 1단계(내부 합성): 한 가지의 idea + 잔가지들을 각각 하나의 직감으로 보고 합성.
+  // 잔가지가 없으면 idea를 그대로 쓴다(합성 호출 생략). ──
+  async function intra(
+    b: BranchInput,
+  ): Promise<{ id: string; idea: string; result: SynthesisResult | null }> {
+    if (b.comments.length < 1) return { id: b.id, idea: b.idea, result: null };
+    const subInputs: BranchInput[] = [
+      { id: "idea", idea: b.idea, comments: [] },
+      ...b.comments.map((c, i) => ({
+        id: `c${i + 1}`,
+        idea: c,
+        comments: [],
+      })),
+    ];
+    const r = await synthesize(subInputs);
+    const idea = r && r.synthesis_possible && r.X ? r.X : b.idea;
+    return { id: b.id, idea, result: r };
+  }
+
   let result: SynthesisResult | null = null;
   try {
-    result = tryParse(await callModel()); // 1차
-    if (!result) result = tryParse(await callModel()); // 재시도(JSON 파싱 실패 시)
+    // 가지별 내부 합성은 서로 독립이므로 병렬 실행.
+    const intraResults = await Promise.all(branches.map(intra));
+
+    if (branches.length === 1) {
+      // 단일 가지: 내부 합성 결과가 곧 최종 결과.
+      result = intraResults[0].result;
+    } else {
+      // ── 2단계(통합): 각 가지의 내부 합성 결과(또는 원 idea)를 서로 합성. ──
+      const interInputs: BranchInput[] = intraResults.map((s) => ({
+        id: s.id,
+        idea: s.idea,
+        comments: [],
+      }));
+      result = await synthesize(interInputs);
+    }
   } catch (e) {
     return Response.json(
       {

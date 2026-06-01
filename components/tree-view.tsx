@@ -7,7 +7,13 @@ import { BranchCard } from "@/components/branch-card";
 import { SynthesizeButton } from "@/components/synthesize-button";
 import type { Branch, Comment } from "@/lib/types";
 
-export function TreeView({ initialBranches }: { initialBranches: Branch[] }) {
+export function TreeView({
+  initialBranches,
+  currentUserId,
+}: {
+  initialBranches: Branch[];
+  currentUserId: string;
+}) {
   const [branches, setBranches] = useState<Branch[]>(initialBranches);
   // 합성에 포함할 가지 선택. 비어 있으면 전체를 대상으로 한다.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -39,6 +45,27 @@ export function TreeView({ initialBranches }: { initialBranches: Branch[] }) {
     );
   }
 
+  // 삭제 반영(낙관적 업데이트 + Realtime DELETE 양쪽에서 호출, 멱등).
+  function removeBranch(id: string) {
+    setBranches((prev) => prev.filter((b) => b.id !== id));
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function removeComment(commentId: string) {
+    setBranches((prev) =>
+      prev.map((b) =>
+        b.comments.some((c) => c.id === commentId)
+          ? { ...b, comments: b.comments.filter((c) => c.id !== commentId) }
+          : b,
+      ),
+    );
+  }
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -56,6 +83,22 @@ export function TreeView({ initialBranches }: { initialBranches: Branch[] }) {
         { event: "INSERT", schema: "public", table: "comments" },
         (payload) => {
           addComment(payload.new as Comment);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "branches" },
+        (payload) => {
+          const old = payload.old as { id?: string };
+          if (old.id) removeBranch(old.id);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload) => {
+          const old = payload.old as { id?: string };
+          if (old.id) removeComment(old.id);
         },
       )
       .subscribe();
@@ -78,7 +121,7 @@ export function TreeView({ initialBranches }: { initialBranches: Branch[] }) {
           </p>
         </div>
         <SynthesizeButton
-          branchCount={branches.length}
+          branches={branches}
           selectedIds={Array.from(selectedIds)}
         />
       </header>
@@ -98,9 +141,12 @@ export function TreeView({ initialBranches }: { initialBranches: Branch[] }) {
               key={b.id}
               branch={b}
               index={i}
+              currentUserId={currentUserId}
               selected={selectedIds.has(b.id)}
               onToggleSelect={() => toggleSelect(b.id)}
               onCommentCreated={addComment}
+              onBranchDeleted={removeBranch}
+              onCommentDeleted={removeComment}
             />
           ))}
         </div>

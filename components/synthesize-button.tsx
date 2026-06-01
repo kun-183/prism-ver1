@@ -12,6 +12,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import type { SynthesisResult } from "@/lib/synthesis-prompt";
+import type { Branch } from "@/lib/types";
 
 type State =
   | { phase: "idle" }
@@ -29,19 +30,32 @@ const MODELS = [
 type ModelKey = (typeof MODELS)[number]["key"];
 
 export function SynthesizeButton({
-  branchCount,
+  branches,
   selectedIds,
 }: {
-  branchCount: number;
+  branches: Branch[];
   selectedIds: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ phase: "idle" });
   const [usedModel, setUsedModel] = useState<ModelKey>("sonnet");
 
-  // 선택된 가지가 있으면 그 개수, 없으면 전체를 대상으로.
-  const targetCount = selectedIds.length > 0 ? selectedIds.length : branchCount;
-  const disabled = targetCount < 2;
+  // 선택된 가지가 있으면 그것만, 없으면 전체를 대상으로.
+  const target =
+    selectedIds.length > 0
+      ? branches.filter((b) => selectedIds.includes(b.id))
+      : branches;
+  const targetCount = target.length;
+
+  // 2개 이상이면 가지끼리 합성. 1개면 그 가지의 잔가지로 내부 합성(잔가지 필요).
+  const canRun =
+    targetCount >= 2 ||
+    (targetCount === 1 && target[0].comments.length >= 1);
+  const disabled = !canRun;
+  const disabledHint =
+    targetCount === 1
+      ? "가지를 하나만 쓰려면 그 가지에 잔가지가 1개 이상 있어야 합니다"
+      : "합성하려면 가지를 최소 2개 선택(또는 전체 2개 이상)해야 합니다";
 
   async function run(model: ModelKey) {
     if (disabled) return;
@@ -88,11 +102,7 @@ export function SynthesizeButton({
             disabled={disabled}
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700"
-            title={
-              disabled
-                ? "합성하려면 가지를 최소 2개 선택(또는 전체 2개 이상)해야 합니다"
-                : `${m.label}로 ${targetLabel} 합성`
-            }
+            title={disabled ? disabledHint : `${m.label}로 ${targetLabel} 합성`}
           >
             {m.label}
             <span className="ml-1 text-[10px] opacity-75">{m.hint}</span>

@@ -73,7 +73,7 @@ export default async function Home() {
         <span className="mr-2 text-xs text-muted-foreground">{user.email}</span>
         <SignOutButton />
       </div>
-      <TreeView initialBranches={branches} />
+      <TreeView initialBranches={branches} currentUserId={user.id} />
     </main>
   );
 }
