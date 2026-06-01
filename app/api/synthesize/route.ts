@@ -19,7 +19,7 @@ const MODEL_MAP: Record<string, string> = {
   opus: "claude-opus-4-8",
 };
 
-type SynthesizeBody = { model?: string; branchIds?: string[] };
+type SynthesizeBody = { model?: string; branchIds?: string[]; pin?: string };
 
 function extractText(msg: Anthropic.Message): string {
   return msg.content
@@ -45,6 +45,16 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+
+  // 돌려보기 잠금: 서버의 4자리 PIN과 일치해야만 합성을 허용한다.
+  // (크레딧 보호 — 로그인한 사용자 중에서도 PIN을 아는 사람만 실행 가능.)
+  // SYNTHESIS_PIN 미설정 시 항상 차단(fail-closed).
+  if (!process.env.SYNTHESIS_PIN || body.pin !== process.env.SYNTHESIS_PIN) {
+    return Response.json(
+      { error: "PIN이 올바르지 않습니다." },
+      { status: 403 },
+    );
+  }
 
   // 전체 가지 + 잔가지 조회 (RLS 적용된 사용자 세션으로)
   const { data: branchesRaw, error } = await supabase

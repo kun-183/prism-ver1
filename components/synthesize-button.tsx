@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import type { Branch } from "@/lib/types";
 
 type State =
   | { phase: "idle" }
+  | { phase: "pin" } // 돌려보기 전 4자리 PIN 입력
   | { phase: "loading" }
   | { phase: "done"; result: SynthesisResult }
   | { phase: "error"; message: string };
@@ -39,6 +41,7 @@ export function SynthesizeButton({
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ phase: "idle" });
   const [usedModel, setUsedModel] = useState<ModelKey>("sonnet");
+  const [pin, setPin] = useState("");
 
   // 선택된 가지가 있으면 그것만, 없으면 전체를 대상으로.
   const target =
@@ -57,18 +60,28 @@ export function SynthesizeButton({
       ? "가지를 하나만 쓰려면 그 가지에 잔가지가 1개 이상 있어야 합니다"
       : "합성하려면 가지를 최소 2개 선택(또는 전체 2개 이상)해야 합니다";
 
-  async function run(model: ModelKey) {
+  // 모델 버튼 클릭 → PIN 입력 단계로. (실제 합성은 PIN 확인 후 submit에서 실행)
+  function run(model: ModelKey) {
     if (disabled) return;
     setUsedModel(model);
     setOpen(true);
+    setState({ phase: "pin" });
+  }
+
+  const pinValid = /^\d{4}$/.test(pin);
+
+  // PIN 확인 후 합성 실행. 서버가 PIN을 검증한다(틀리면 403).
+  async function submit() {
+    if (!pinValid) return;
     setState({ phase: "loading" });
     try {
       const res = await fetch("/api/synthesize", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: usedModel,
           branchIds: selectedIds.length > 0 ? selectedIds : undefined,
+          pin,
         }),
       });
       const data = await res.json();
@@ -113,12 +126,47 @@ export function SynthesizeButton({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>N+1 합성 결과</DialogTitle>
+            <DialogTitle>
+              {state.phase === "pin" ? "🔒 돌려보기 잠금" : "N+1 합성 결과"}
+            </DialogTitle>
             <DialogDescription>
-              {usedLabel} · {targetLabel} · 입력 어느 것과도 같지 않은, 누구도
-              혼자선 도달 못 했을 한 문장.
+              {state.phase === "pin"
+                ? `${usedLabel}로 ${targetLabel}를 합성합니다.`
+                : `${usedLabel} · ${targetLabel} · 입력 어느 것과도 같지 않은, 누구도 혼자선 도달 못 했을 한 문장.`}
             </DialogDescription>
           </DialogHeader>
+
+          {state.phase === "pin" && (
+            <div className="py-4">
+              <p className="mb-3 text-sm text-muted-foreground">
+                돌려보기는 4자리 PIN이 필요합니다.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  autoFocus
+                  maxLength={4}
+                  value={pin}
+                  onChange={(e) =>
+                    setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submit();
+                  }}
+                  placeholder="••••"
+                  className="w-28 text-center tracking-[0.5em]"
+                />
+                <Button
+                  onClick={submit}
+                  disabled={!pinValid}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  확인
+                </Button>
+              </div>
+            </div>
+          )}
 
           {state.phase === "loading" && (
             <div className="space-y-3 py-4">
@@ -135,7 +183,7 @@ export function SynthesizeButton({
             <div className="py-6">
               <p className="text-sm text-red-500">{state.message}</p>
               <Button
-                onClick={() => run(usedModel)}
+                onClick={() => setState({ phase: "pin" })}
                 variant="outline"
                 size="sm"
                 className="mt-4"
