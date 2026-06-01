@@ -12,6 +12,15 @@ export const dynamic = "force-dynamic";
 
 type BranchInput = { id: string; idea: string; comments: string[] };
 
+// 클라이언트가 보내는 모델 키 → 실제 모델 ID. 화이트리스트로만 허용.
+const MODEL_MAP: Record<string, string> = {
+  haiku: "claude-haiku-4-5-20251001",
+  sonnet: "claude-sonnet-4-6",
+  opus: "claude-opus-4-8",
+};
+
+type SynthesizeBody = { model?: string; branchIds?: string[] };
+
 function extractText(msg: Anthropic.Message): string {
   return msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -19,13 +28,17 @@ function extractText(msg: Anthropic.Message): string {
     .join("");
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   if (!isSupabaseConfigured || !process.env.ANTHROPIC_API_KEY) {
     return Response.json(
       { error: "서버 환경변수가 설정되지 않았습니다(Supabase / Anthropic)." },
       { status: 503 },
     );
   }
+
+  const body: SynthesizeBody = await request
+    .json()
+    .catch(() => ({}) as SynthesizeBody);
 
   const supabase = await createClient();
   const {
@@ -46,7 +59,7 @@ export async function POST() {
     );
   }
 
-  const branches: BranchInput[] = (branchesRaw ?? []).map(
+  const allBranches: BranchInput[] = (branchesRaw ?? []).map(
     (b: { id: string; idea: string; comments: { body: string }[] | null }) => ({
       id: b.id,
       idea: b.idea,
@@ -54,15 +67,26 @@ export async function POST() {
     }),
   );
 
+  // 선택된 가지가 있으면 그것만, 없으면 전체로 합성한다.
+  const selectedIds = Array.isArray(body.branchIds) ? body.branchIds : [];
+  const branches =
+    selectedIds.length > 0
+      ? allBranches.filter((b) => selectedIds.includes(b.id))
+      : allBranches;
+
   if (branches.length < 2) {
     return Response.json(
-      { error: "합성하려면 가지가 최소 2개 필요합니다." },
+      { error: "합성하려면 가지를 최소 2개 선택해야 합니다." },
       { status: 400 },
     );
   }
 
   const anthropic = new Anthropic(); // ANTHROPIC_API_KEY 환경변수 사용
-  const model = process.env.SYNTHESIS_MODEL ?? "claude-sonnet-4-6";
+  // 모델 키(haiku/sonnet/opus)는 화이트리스트로만 허용, 없으면 기본값.
+  const model =
+    MODEL_MAP[body.model ?? ""] ??
+    process.env.SYNTHESIS_MODEL ??
+    "claude-sonnet-4-6";
   const userContent = JSON.stringify({ branches });
 
   // 주의: 일부 최신 모델(claude-sonnet-4-6 등)은 assistant 프리필을 지원하지 않는다

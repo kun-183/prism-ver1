@@ -19,15 +19,44 @@ type State =
   | { phase: "done"; result: SynthesisResult }
   | { phase: "error"; message: string };
 
-export function SynthesizeButton({ branchCount }: { branchCount: number }) {
+// 표시용 모델 목록(키는 서버 MODEL_MAP과 일치해야 함).
+const MODELS = [
+  { key: "haiku", label: "Haiku", hint: "빠름" },
+  { key: "sonnet", label: "Sonnet", hint: "균형" },
+  { key: "opus", label: "Opus", hint: "고품질" },
+] as const;
+
+type ModelKey = (typeof MODELS)[number]["key"];
+
+export function SynthesizeButton({
+  branchCount,
+  selectedIds,
+}: {
+  branchCount: number;
+  selectedIds: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ phase: "idle" });
+  const [usedModel, setUsedModel] = useState<ModelKey>("sonnet");
 
-  async function run() {
+  // 선택된 가지가 있으면 그 개수, 없으면 전체를 대상으로.
+  const targetCount = selectedIds.length > 0 ? selectedIds.length : branchCount;
+  const disabled = targetCount < 2;
+
+  async function run(model: ModelKey) {
+    if (disabled) return;
+    setUsedModel(model);
     setOpen(true);
     setState({ phase: "loading" });
     try {
-      const res = await fetch("/api/synthesize", { method: "POST" });
+      const res = await fetch("/api/synthesize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model,
+          branchIds: selectedIds.length > 0 ? selectedIds : undefined,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setState({
@@ -42,26 +71,42 @@ export function SynthesizeButton({ branchCount }: { branchCount: number }) {
     }
   }
 
-  const disabled = branchCount < 2;
+  const usedLabel = MODELS.find((m) => m.key === usedModel)?.label ?? usedModel;
+  const targetLabel =
+    selectedIds.length > 0 ? `선택한 ${targetCount}개 가지` : "전체 가지";
 
   return (
     <>
-      <Button
-        onClick={run}
-        disabled={disabled}
-        size="lg"
-        className="bg-emerald-600 hover:bg-emerald-700"
-        title={disabled ? "가지가 최소 2개 필요합니다" : undefined}
-      >
-        ⟳ 돌려보기
-      </Button>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-xs text-muted-foreground">
+          ⟳ 돌려보기:
+        </span>
+        {MODELS.map((m) => (
+          <Button
+            key={m.key}
+            onClick={() => run(m.key)}
+            disabled={disabled}
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            title={
+              disabled
+                ? "합성하려면 가지를 최소 2개 선택(또는 전체 2개 이상)해야 합니다"
+                : `${m.label}로 ${targetLabel} 합성`
+            }
+          >
+            {m.label}
+            <span className="ml-1 text-[10px] opacity-75">{m.hint}</span>
+          </Button>
+        ))}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>N+1 합성 결과</DialogTitle>
             <DialogDescription>
-              입력 어느 것과도 같지 않은, 누구도 혼자선 도달 못 했을 한 문장.
+              {usedLabel} · {targetLabel} · 입력 어느 것과도 같지 않은, 누구도
+              혼자선 도달 못 했을 한 문장.
             </DialogDescription>
           </DialogHeader>
 
@@ -79,7 +124,12 @@ export function SynthesizeButton({ branchCount }: { branchCount: number }) {
           {state.phase === "error" && (
             <div className="py-6">
               <p className="text-sm text-red-500">{state.message}</p>
-              <Button onClick={run} variant="outline" size="sm" className="mt-4">
+              <Button
+                onClick={() => run(usedModel)}
+                variant="outline"
+                size="sm"
+                className="mt-4"
+              >
                 다시 시도
               </Button>
             </div>

@@ -20,10 +20,14 @@ function timeAgo(iso: string): string {
 export function BranchCard({
   branch,
   index,
+  selected,
+  onToggleSelect,
   onCommentCreated,
 }: {
   branch: Branch;
   index: number;
+  selected: boolean;
+  onToggleSelect: () => void;
   onCommentCreated: (comment: Comment) => void;
 }) {
   const [body, setBody] = useState("");
@@ -49,8 +53,19 @@ export function BranchCard({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <div
+      className={`rounded-xl border bg-card p-4 shadow-sm transition-colors ${
+        selected ? "border-emerald-500 ring-1 ring-emerald-500/40" : ""
+      }`}
+    >
       <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label="이 가지를 합성에 포함"
+          className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
+        />
         <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
           {index + 1}
         </span>
