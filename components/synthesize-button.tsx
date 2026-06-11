@@ -50,15 +50,10 @@ export function SynthesizeButton({
       : branches;
   const targetCount = target.length;
 
-  // 2개 이상이면 가지끼리 합성. 1개면 그 가지의 잔가지로 내부 합성(잔가지 필요).
-  const canRun =
-    targetCount >= 2 ||
-    (targetCount === 1 && target[0].comments.length >= 1);
+  // 입력 개수와 잔가지 유무와 무관하게 서버는 항상 같은 4단계 독립 호출을 실행한다.
+  const canRun = targetCount >= 1;
   const disabled = !canRun;
-  const disabledHint =
-    targetCount === 1
-      ? "가지를 하나만 쓰려면 그 가지에 잔가지가 1개 이상 있어야 합니다"
-      : "합성하려면 가지를 최소 2개 선택(또는 전체 2개 이상)해야 합니다";
+  const disabledHint = "합성하려면 가지가 최소 1개 있어야 합니다";
 
   // 모델 버튼 클릭 → PIN 입력 단계로. (실제 합성은 PIN 확인 후 submit에서 실행)
   function run(model: ModelKey) {

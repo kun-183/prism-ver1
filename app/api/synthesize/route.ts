@@ -21,6 +21,32 @@ const MODEL_MAP: Record<string, string> = {
 
 type SynthesizeBody = { model?: string; branchIds?: string[]; pin?: string };
 
+type DimensionStage = {
+  dimensions: string[];
+  diversity_warning?: string | null;
+  refusal_reason?: string | null;
+};
+
+type OrthogonalityStage = {
+  orthogonal_pairs: SynthesisResult["orthogonal_pairs"];
+  diversity_warning?: string | null;
+  refusal_reason?: string | null;
+};
+
+type XStage = {
+  synthesis_possible: boolean;
+  X: string;
+  diversity_warning?: string | null;
+  refusal_reason?: string | null;
+};
+
+type ContributionStage = {
+  contribution: SynthesisResult["contribution"];
+  valid?: boolean;
+  diversity_warning?: string | null;
+  refusal_reason?: string | null;
+};
+
 function extractText(msg: Anthropic.Message): string {
   return msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -90,16 +116,6 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  // 단일 가지는 잔가지(반대·확장 의견)가 있어야 내부 합성이 성립한다.
-  if (branches.length === 1 && branches[0].comments.length < 1) {
-    return Response.json(
-      {
-        error:
-          "가지를 하나만 선택했다면, 그 가지에 잔가지가 최소 1개 있어야 합성할 수 있습니다.",
-      },
-      { status: 400 },
-    );
-  }
 
   const anthropic = new Anthropic(); // ANTHROPIC_API_KEY 환경변수 사용
   // 모델 키(haiku/sonnet/opus)는 화이트리스트로만 허용, 없으면 기본값.
@@ -111,14 +127,17 @@ export async function POST(request: Request) {
   // 주의: 일부 최신 모델(claude-sonnet-4-6 등)은 assistant 프리필을 지원하지 않는다
   // ("conversation must end with a user message"). 따라서 프리필 없이 호출하고,
   // 시스템 프롬프트의 "JSON만 출력" 지시 + tryParse(펜스 제거)로 JSON을 회수한다.
-  async function callModel(userContent: string): Promise<string> {
+  async function callModel(
+    userContent: string,
+    systemPrompt = SYNTHESIS_SYSTEM_PROMPT,
+  ): Promise<string> {
     const msg = await anthropic.messages.create({
       model,
       max_tokens: 1500,
       system: [
         {
           type: "text",
-          text: SYNTHESIS_SYSTEM_PROMPT,
+          text: systemPrompt,
           cache_control: { type: "ephemeral" }, // 긴 시스템 프롬프트 캐싱
         },
       ],
@@ -128,61 +147,132 @@ export async function POST(request: Request) {
     return extractText(msg);
   }
 
-  function tryParse(raw: string): SynthesisResult | null {
+  function tryParse<T>(raw: string): T | null {
     try {
       // 혹시 모를 마크다운 펜스 제거 후 파싱
       const clean = raw.replace(/```json|```/g, "").trim();
-      return JSON.parse(clean) as SynthesisResult;
+      return JSON.parse(clean) as T;
     } catch {
       return null;
     }
   }
 
-  // 입력 묶음 1회 합성(파싱 실패 시 1회 재시도).
-  async function synthesize(
-    inputs: BranchInput[],
-  ): Promise<SynthesisResult | null> {
-    const content = JSON.stringify({ branches: inputs });
-    let r = tryParse(await callModel(content));
-    if (!r) r = tryParse(await callModel(content));
+  // 각 단계는 원본 입력만 받는 독립 호출이다. 이전 단계 결과를 넘기지 않는다.
+  async function callStage<T>({
+    stage,
+    task,
+    outputSchema,
+  }: {
+    stage: string;
+    task: string;
+    outputSchema: Record<string, unknown>;
+  }): Promise<T | null> {
+    const systemPrompt = `${SYNTHESIS_SYSTEM_PROMPT}
+
+[독립 단계 호출]
+이번 API 호출은 "${stage}" 단계만 수행한다.
+다른 단계의 답변을 가정하거나 이어받지 않는다.
+원본 입력 branches만 사용한다.
+반드시 아래 output_schema와 같은 JSON 객체만 출력한다.
+${JSON.stringify(outputSchema)}`;
+
+    const content = JSON.stringify({
+      mode: "independent_synthesis_stage",
+      independence_rule:
+        "This API call must use only the branches in this payload. Do not assume, reuse, or depend on any answer from another stage/session.",
+      stage,
+      task,
+      branches,
+    });
+    let r = tryParse<T>(await callModel(content, systemPrompt));
+    if (!r) r = tryParse<T>(await callModel(content, systemPrompt));
     return r;
   }
 
-  // ── 1단계(내부 합성): 한 가지의 idea + 잔가지들을 각각 하나의 직감으로 보고 합성.
-  // 잔가지가 없으면 idea를 그대로 쓴다(합성 호출 생략). ──
-  async function intra(
-    b: BranchInput,
-  ): Promise<{ id: string; idea: string; result: SynthesisResult | null }> {
-    if (b.comments.length < 1) return { id: b.id, idea: b.idea, result: null };
-    const subInputs: BranchInput[] = [
-      { id: "idea", idea: b.idea, comments: [] },
-      ...b.comments.map((c, i) => ({
-        id: `c${i + 1}`,
-        idea: c,
-        comments: [],
-      })),
-    ];
-    const r = await synthesize(subInputs);
-    const idea = r && r.synthesis_possible && r.X ? r.X : b.idea;
-    return { id: b.id, idea, result: r };
+  function joinWarnings(
+    values: Array<string | null | undefined>,
+  ): string | null {
+    const warnings = values.filter(
+      (v): v is string => typeof v === "string" && v.length > 0,
+    );
+    return warnings.length > 0 ? warnings.join(" / ") : null;
   }
 
   let result: SynthesisResult | null = null;
   try {
-    // 가지별 내부 합성은 서로 독립이므로 병렬 실행.
-    const intraResults = await Promise.all(branches.map(intra));
+    const [dimensionStage, orthogonalityStage, xStage, contributionStage] =
+      await Promise.all([
+        callStage<DimensionStage>({
+          stage: "1_dimension_extraction",
+          task: "Extract only the deep motivational dimensions shared or contrasted by the input branches/comments. Do not produce X.",
+          outputSchema: {
+            dimensions: ["dimension"],
+            diversity_warning: null,
+            refusal_reason: null,
+          },
+        }),
+        callStage<OrthogonalityStage>({
+          stage: "2_orthogonality_detection",
+          task: "Detect only productive tensions or orthogonal pairs among the input branches/comments. Do not produce X.",
+          outputSchema: {
+            orthogonal_pairs: [
+              { a: "branch id", b: "branch id", shared_dimension: "dimension" },
+            ],
+            diversity_warning: null,
+            refusal_reason: null,
+          },
+        }),
+        callStage<XStage>({
+          stage: "3_x_generation",
+          task: "Generate only the N+1 sentence X from the original branches/comments. Refuse honestly if no real synthesis is possible.",
+          outputSchema: {
+            synthesis_possible: true,
+            X: "one sentence synthesis result",
+            diversity_warning: null,
+            refusal_reason: null,
+          },
+        }),
+        callStage<ContributionStage>({
+          stage: "4_contribution_tracking",
+          task: "Track which input branch ids contribute to core synthesis elements, using only the original branches/comments. Do not use any previous stage output.",
+          outputSchema: {
+            valid: true,
+            contribution: {
+              "synthesis element": ["branch id"],
+            },
+            diversity_warning: null,
+            refusal_reason: null,
+          },
+        }),
+      ]);
 
-    if (branches.length === 1) {
-      // 단일 가지: 내부 합성 결과가 곧 최종 결과.
-      result = intraResults[0].result;
+    if (!dimensionStage || !orthogonalityStage || !xStage || !contributionStage) {
+      result = null;
     } else {
-      // ── 2단계(통합): 각 가지의 내부 합성 결과(또는 원 idea)를 서로 합성. ──
-      const interInputs: BranchInput[] = intraResults.map((s) => ({
-        id: s.id,
-        idea: s.idea,
-        comments: [],
-      }));
-      result = await synthesize(interInputs);
+      const contributionInvalid = contributionStage.valid === false;
+      const synthesisPossible =
+        xStage.synthesis_possible === true && !contributionInvalid;
+
+      result = {
+        synthesis_possible: synthesisPossible,
+        X: synthesisPossible ? xStage.X : "",
+        dimensions: dimensionStage.dimensions ?? [],
+        orthogonal_pairs: orthogonalityStage.orthogonal_pairs ?? [],
+        contribution: contributionStage.contribution ?? {},
+        diversity_warning: joinWarnings([
+          dimensionStage.diversity_warning,
+          orthogonalityStage.diversity_warning,
+          xStage.diversity_warning,
+          contributionStage.diversity_warning,
+        ]),
+        refusal_reason: synthesisPossible
+          ? null
+          : (xStage.refusal_reason ??
+            contributionStage.refusal_reason ??
+            dimensionStage.refusal_reason ??
+            orthogonalityStage.refusal_reason ??
+            "이 입력만으로는 N+1 합성을 만들 수 없습니다."),
+      };
     }
   } catch (e) {
     return Response.json(
