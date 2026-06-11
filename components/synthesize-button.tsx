@@ -119,7 +119,7 @@ export function SynthesizeButton({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {state.phase === "pin" ? "🔒 돌려보기 잠금" : "N+1 합성 결과"}
@@ -198,11 +198,11 @@ export function SynthesizeButton({
 function ResultView({ result }: { result: SynthesisResult }) {
   if (!result.synthesis_possible) {
     return (
-      <div className="py-4">
+      <div className="min-w-0 py-4">
         <Badge variant="secondary" className="mb-3">
           합성 거부 (정직한 결과)
         </Badge>
-        <p className="text-sm leading-relaxed text-foreground/80">
+        <p className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/80 [overflow-wrap:anywhere]">
           {result.refusal_reason ??
             "이 조합으로는 N+1을 만들 수 없습니다. 더 다양한 직감을 쌓아보세요."}
         </p>
@@ -211,13 +211,16 @@ function ResultView({ result }: { result: SynthesisResult }) {
   }
 
   return (
-    <div className="py-2">
+    <div className="min-w-0 py-2">
       {result.diversity_warning && (
-        <Badge variant="outline" className="mb-3 border-amber-400 text-amber-600">
+        <Badge
+          variant="outline"
+          className="mb-3 h-auto min-h-5 max-w-full justify-start whitespace-normal border-amber-400 text-left leading-relaxed break-words text-amber-600 [overflow-wrap:anywhere]"
+        >
           ⚠ {result.diversity_warning}
         </Badge>
       )}
-      <blockquote className="border-l-4 border-emerald-500 py-1 pl-4 text-lg font-semibold leading-relaxed">
+      <blockquote className="min-w-0 whitespace-pre-wrap break-words border-l-4 border-emerald-500 py-1 pl-4 text-lg font-semibold leading-relaxed [overflow-wrap:anywhere]">
         {result.X}
       </blockquote>
 
@@ -228,7 +231,11 @@ function ResultView({ result }: { result: SynthesisResult }) {
           </p>
           <div className="flex flex-wrap gap-1.5">
             {result.dimensions.map((d, i) => (
-              <Badge key={i} variant="secondary" className="font-normal">
+              <Badge
+                key={i}
+                variant="secondary"
+                className="h-auto min-h-5 max-w-full whitespace-normal text-left break-words font-normal [overflow-wrap:anywhere]"
+              >
                 {d}
               </Badge>
             ))}
