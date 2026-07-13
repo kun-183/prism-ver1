@@ -1,0 +1,83 @@
+{
+  "case": {
+    "name": "05-contradictory-productive",
+    "description": "정면 충돌하는 3개 — 갈등을 평균내지 않고 생산적으로 흡수하는지 검증",
+    "expected": "synthesize",
+    "judge_notes": "X가 '적당히 섞자' 식의 평균화면 실패(제약2 위반). 세 입장이 공유하는 더 깊은 차원을 찾아 제3의 위치를 내야 한다.",
+    "branches": [
+      {
+        "id": "b1",
+        "idea": "이번 학기는 수익화 가능한 외주를 받아서 동아리 운영비를 벌자",
+        "comments": [
+          "돈이 있어야 뭐든 함"
+        ]
+      },
+      {
+        "id": "b2",
+        "idea": "외주는 절대 금지하고 순수하게 우리 제품만 만들자",
+        "comments": [
+          "외주 받는 순간 동아리가 아니라 회사가 됨",
+          "배우는 게 없음"
+        ]
+      },
+      {
+        "id": "b3",
+        "idea": "제품이고 외주고 다 접고 이번 학기는 스터디만 하자",
+        "comments": [
+          "기초가 없는데 뭘 만들어도 무너짐"
+        ]
+      }
+    ]
+  },
+  "model": "claude-sonnet-4-6",
+  "elapsed_ms": 8970,
+  "stage_failures": [],
+  "result": {
+    "synthesis_possible": true,
+    "X": "스터디 결과물을 외부에 공개하되, 의뢰가 들어오면 학습 프로젝트로 소화해 동아리비로 전환한다",
+    "dimensions": [
+      "재정 자립 vs 순수성",
+      "성장 방식(실전 vs 학습)",
+      "정체성(동아리 vs 회사 vs 학교)",
+      "지속가능성의 조건"
+    ],
+    "orthogonal_pairs": [
+      {
+        "a": "b1",
+        "b": "b2",
+        "shared_dimension": "외부 수익 vs 내부 순수성 (동아리의 경제적 자립 방식)"
+      },
+      {
+        "a": "b2",
+        "b": "b3",
+        "shared_dimension": "만들기(실전) vs 배우기(학습) (역량 축적 방식)"
+      },
+      {
+        "a": "b1",
+        "b": "b3",
+        "shared_dimension": "즉각적 자원 확보 vs 장기적 기반 투자 (시간 지평)"
+      }
+    ],
+    "contribution": {
+      "스터디 결과물": [
+        "b3"
+      ],
+      "외부에 공개": [
+        "b2",
+        "b3"
+      ],
+      "의뢰가 들어오면": [
+        "b1"
+      ],
+      "학습 프로젝트로 소화": [
+        "b2",
+        "b3"
+      ],
+      "동아리비로 전환": [
+        "b1"
+      ]
+    },
+    "diversity_warning": null,
+    "refusal_reason": null
+  }
+}

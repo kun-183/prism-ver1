@@ -1,0 +1,45 @@
+{
+  "case": {
+    "name": "03-near-duplicates",
+    "description": "같은 아이디어의 표현만 다른 3개 — 직교 쌍 0, 정직하게 거부하거나 최소한 다양성 경고가 떠야 함",
+    "expected": "refuse",
+    "judge_notes": "합성을 강행해 사실상 입력의 재진술인 X를 내면 실패. refuse가 정답이고, synthesize하더라도 diversity_warning이 없으면 감점.",
+    "branches": [
+      {
+        "id": "b1",
+        "idea": "회의록을 AI가 자동으로 요약해주면 좋겠다",
+        "comments": [
+          "매번 서기 정하는 게 귀찮음"
+        ]
+      },
+      {
+        "id": "b2",
+        "idea": "회의 끝나면 AI가 알아서 정리해서 올려주는 기능이 필요하다",
+        "comments": []
+      },
+      {
+        "id": "b3",
+        "idea": "회의 내용 요약을 자동화하자",
+        "comments": [
+          "노션에 자동 업로드까지 되면 완벽"
+        ]
+      }
+    ]
+  },
+  "model": "claude-sonnet-4-6",
+  "elapsed_ms": 3760,
+  "stage_failures": [],
+  "result": {
+    "synthesis_possible": false,
+    "X": "",
+    "dimensions": [
+      "반복 수작업 제거",
+      "정보 보존 및 공유",
+      "자동화 트리거 시점"
+    ],
+    "orthogonal_pairs": [],
+    "contribution": {},
+    "diversity_warning": "과집중: 입력 직감 3개 중 3개(100%)가 '회의록 자동 요약 자동화' 차원에 집중되어 있음",
+    "refusal_reason": "세 직감 모두 '회의 내용 자동 요약'이라는 동일 차원에 위치하며, 표면 표현만 다를 뿐 동기·방향·극성이 실질적으로 동일하다. 생산적 반대를 형성하는 쌍이 존재하지 않는다."
+  }
+}

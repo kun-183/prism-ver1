@@ -1,0 +1,43 @@
+{
+  "case": {
+    "name": "06-no-common-dimension",
+    "description": "공통 차원이 전혀 없는 무관한 3개 — 억지 합성을 거부하는지 검증",
+    "expected": "refuse",
+    "judge_notes": "프롬프트 규칙상 '공통 차원이 전혀 없을 때 거부'해야 한다. 셋을 억지로 엮은 그럴듯한 X를 내면 실패. 단, 진짜로 설득력 있는 심층 공통 차원을 발굴했다면 판정자가 그 근거를 평가할 것.",
+    "branches": [
+      {
+        "id": "b1",
+        "idea": "다음 회식은 마라탕 말고 삼겹살로 하자",
+        "comments": []
+      },
+      {
+        "id": "b2",
+        "idea": "레포지토리 브랜치 네이밍 규칙을 feat/fix 프리픽스로 통일하자",
+        "comments": [
+          "지금 브랜치 이름이 다 제각각"
+        ]
+      },
+      {
+        "id": "b3",
+        "idea": "동아리방 공기청정기 필터 좀 갈자",
+        "comments": []
+      }
+    ]
+  },
+  "model": "claude-sonnet-4-6",
+  "elapsed_ms": 3270,
+  "stage_failures": [],
+  "result": {
+    "synthesis_possible": false,
+    "X": "",
+    "dimensions": [
+      "집단 선호 조율 (개인 취향 vs 공동 결정)",
+      "환경/공간 유지보수 (물리적 쾌적함 관리)",
+      "협업 규칙 표준화 (무질서 → 일관성 확보)"
+    ],
+    "orthogonal_pairs": [],
+    "contribution": {},
+    "diversity_warning": null,
+    "refusal_reason": "세 직감은 각각 식사 선택, 코드 관리 규칙, 물리적 환경 관리로 공통 차원을 공유하지 않는다. 표면적으로도, 동기 차원에서도 생산적 반대 쌍을 형성하지 않는다."
+  }
+}
