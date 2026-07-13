@@ -103,6 +103,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "합성할 가지를 선택하세요." }, { status: 400 });
   }
   const anthropic = new Anthropic();
+  console.info("[api/synthesize] action started", {
+    action: body.action,
+    branchCount: branches.length,
+  });
 
   try {
     if (body.action === "extract_dimensions") {
@@ -160,6 +164,12 @@ export async function POST(request: Request) {
     }
     return Response.json({ error: "지원하지 않는 단계입니다." }, { status: 400 });
   } catch (cause) {
+    console.error("[api/synthesize] action failed", {
+      action: body.action,
+      branchCount: branches.length,
+      error: cause instanceof Error ? cause.message : String(cause),
+      stack: cause instanceof Error ? cause.stack : undefined,
+    });
     return Response.json(
       {
         error: "현재 단계를 처리하지 못했습니다. 이 단계만 다시 시도해 주세요.",

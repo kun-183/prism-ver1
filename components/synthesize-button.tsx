@@ -74,7 +74,12 @@ export function SynthesizeButton({
       body: JSON.stringify({ action, pin, branchIds, ...payload }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data?.error ?? "요청에 실패했습니다.");
+    if (!response.ok) {
+      const message = data?.detail
+        ? `${data.error ?? "요청에 실패했습니다."} · ${data.detail}`
+        : data?.error ?? "요청에 실패했습니다.";
+      throw new Error(message);
+    }
     return data as T;
   }
 

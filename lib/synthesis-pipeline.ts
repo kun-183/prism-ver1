@@ -1,7 +1,6 @@
 import "server-only";
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { SYNTHESIS_SYSTEM_PROMPT } from "@/lib/synthesis-prompt";
 import type {
   CombinationCandidate,
   PipelineDimension,
@@ -13,12 +12,22 @@ const DRAFT_MODEL =
   process.env.SYNTHESIS_DRAFT_MODEL ?? "claude-haiku-4-5-20251001";
 const HIGH_MODEL = process.env.SYNTHESIS_HIGH_MODEL ?? "claude-opus-4-8";
 
+const PIPELINE_SYSTEM_PROMPT = `당신은 여러 사람의 직감을 N+1 아이디어로 발전시키는 Synthesis 엔진이다.
+입력 가지(branch)는 직감이고 잔가지(comment)는 맥락, 이견, 보강이다.
+표면 단어보다 진짜 동기와 관심사를 분석하고, 단순 선택·평균·이어붙이기를 피한다.
+생산적 반대가 없거나 근거가 부족하면 억지 결과를 만들지 않는다.
+이번 요청에 명시된 한 단계만 수행하며 다른 단계의 결과를 미리 생성하지 않는다.
+가장 마지막에 제시된 출력 스키마를 정확히 따르고 JSON 객체 외 텍스트를 출력하지 않는다.`;
+
 type DimensionResponse = {
-  dimensions: Array<{
-    label: string;
-    description: string;
-    branch_ids: string[];
-  }>;
+  dimensions: Array<
+    | string
+    | {
+        label?: string;
+        description?: string;
+        branch_ids?: string[];
+      }
+  >;
   diversity_warning?: string | null;
 };
 
@@ -48,7 +57,11 @@ function extractText(message: Anthropic.Message) {
 
 function parseJson<T>(raw: string): T | null {
   try {
-    return JSON.parse(raw.replace(/```json|```/g, "").trim()) as T;
+    const clean = raw.replace(/```json|```/g, "").trim();
+    const start = clean.indexOf("{");
+    const end = clean.lastIndexOf("}");
+    if (start < 0 || end < start) return null;
+    return JSON.parse(clean.slice(start, end + 1)) as T;
   } catch {
     return null;
   }
@@ -60,17 +73,35 @@ async function callJson<T>(
   instructions: string,
   payload: unknown,
 ) {
-  const system = `${SYNTHESIS_SYSTEM_PROMPT}\n\n${instructions}\n반드시 JSON 객체 하나만 출력한다.`;
+  const system = `${PIPELINE_SYSTEM_PROMPT}\n\n${instructions}`;
+  const stage = instructions.match(/^\[([^\]]+)\]/)?.[1] ?? "unknown";
   async function call() {
-    const message = await anthropic.messages.create({
-      model,
-      max_tokens: 1400,
-      system: [
-        { type: "text", text: system, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [{ role: "user", content: JSON.stringify(payload) }],
-    });
-    return parseJson<T>(extractText(message));
+    console.info("[synthesis-pipeline] model call started", { stage, model });
+    try {
+      const message = await anthropic.messages.create({
+        model,
+        max_tokens: 1400,
+        system: [
+          { type: "text", text: system, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [{ role: "user", content: JSON.stringify(payload) }],
+      });
+      const parsed = parseJson<T>(extractText(message));
+      console.info("[synthesis-pipeline] model call completed", {
+        stage,
+        model,
+        stopReason: message.stop_reason,
+        parsed: parsed !== null,
+      });
+      return parsed;
+    } catch (cause) {
+      console.error("[synthesis-pipeline] model call failed", {
+        stage,
+        model,
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
+      throw cause;
+    }
   }
   return (await call()) ?? (await call());
 }
@@ -94,16 +125,33 @@ export async function extractDimensions({
   if (!response) throw new Error("차원 추출 결과를 해석하지 못했습니다.");
   const allowedIds = new Set(branches.map((branch) => branch.id));
   const dimensions: PipelineDimension[] = (response.dimensions ?? [])
-    .filter((dimension) => dimension.label?.trim())
     .slice(0, 8)
-    .map((dimension, index) => ({
-      id: `dimension-${index + 1}`,
-      label: dimension.label.trim(),
-      description: dimension.description?.trim() ?? "",
-      branch_ids: [...new Set(dimension.branch_ids ?? [])].filter((id) =>
-        allowedIds.has(id),
-      ),
-    }));
+    .flatMap((dimension, index) => {
+      const label =
+        typeof dimension === "string"
+          ? dimension.trim()
+          : dimension.label?.trim() ?? "";
+      if (!label) return [];
+
+      const branchIds =
+        typeof dimension === "string"
+          ? branches.map((branch) => branch.id)
+          : [...new Set(dimension.branch_ids ?? [])].filter((id) =>
+              allowedIds.has(id),
+            );
+
+      return [
+        {
+          id: `dimension-${index + 1}`,
+          label,
+          description:
+            typeof dimension === "string"
+              ? "선택한 가지에서 추출된 공통 동기 차원"
+              : dimension.description?.trim() ?? "",
+          branch_ids: branchIds,
+        },
+      ];
+    });
   if (dimensions.length === 0) throw new Error("유효한 차원을 찾지 못했습니다.");
   return {
     dimensions,
