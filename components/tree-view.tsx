@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NewBranchForm } from "@/components/new-branch-form";
 import { BranchCard } from "@/components/branch-card";
 import { SynthesizeButton } from "@/components/synthesize-button";
+import { Button } from "@/components/ui/button";
 import type { Branch, Comment } from "@/lib/types";
 
 export function TreeView({
@@ -15,8 +16,10 @@ export function TreeView({
   currentUserId: string;
 }) {
   const [branches, setBranches] = useState<Branch[]>(initialBranches);
-  // 합성에 포함할 가지 선택. 비어 있으면 전체를 대상으로 한다.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 회의 시작 시 전체 선택, 이후 개별 제외하는 흐름.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(initialBranches.map((branch) => branch.id)),
+  );
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -110,20 +113,36 @@ export function TreeView({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight">🌳 나무</h1>
           <p className="text-sm text-muted-foreground">
             가지 {branches.length}개
-            {selectedIds.size > 0
-              ? ` · ${selectedIds.size}개 선택됨`
-              : " · 직감을 쌓고 돌려보세요"}
+            {" · "}{selectedIds.size}개 선택됨
           </p>
         </div>
-        <SynthesizeButton
-          branches={branches}
-          selectedIds={Array.from(selectedIds)}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedIds(new Set(branches.map((branch) => branch.id)))}
+            disabled={branches.length === 0 || selectedIds.size === branches.length}
+          >
+            전체 선택
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={selectedIds.size === 0}
+          >
+            전체 해제
+          </Button>
+          <SynthesizeButton
+            branches={branches}
+            selectedIds={Array.from(selectedIds)}
+          />
+        </div>
       </header>
 
       <div className="mb-6">

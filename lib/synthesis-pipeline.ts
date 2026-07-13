@@ -1,0 +1,263 @@
+import "server-only";
+
+import type Anthropic from "@anthropic-ai/sdk";
+import { SYNTHESIS_SYSTEM_PROMPT } from "@/lib/synthesis-prompt";
+import type {
+  CombinationCandidate,
+  PipelineDimension,
+  PipelineSynthesis,
+} from "@/lib/types";
+import type { BranchInput } from "@/lib/synthesis-engine";
+
+const DRAFT_MODEL =
+  process.env.SYNTHESIS_DRAFT_MODEL ?? "claude-haiku-4-5-20251001";
+const HIGH_MODEL = process.env.SYNTHESIS_HIGH_MODEL ?? "claude-opus-4-8";
+
+type DimensionResponse = {
+  dimensions: Array<{
+    label: string;
+    description: string;
+    branch_ids: string[];
+  }>;
+  diversity_warning?: string | null;
+};
+
+type CombinationResponse = {
+  candidates: Array<{
+    branch_ids: string[];
+    shared_dimension: string;
+    tension: string;
+    rationale: string;
+  }>;
+  refusal_reason?: string | null;
+};
+
+type SynthesisResponse = {
+  synthesis_possible: boolean;
+  X: string;
+  contribution: Record<string, string[]>;
+  refusal_reason?: string | null;
+};
+
+function extractText(message: Anthropic.Message) {
+  return message.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
+
+function parseJson<T>(raw: string): T | null {
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim()) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function callJson<T>(
+  anthropic: Anthropic,
+  model: string,
+  instructions: string,
+  payload: unknown,
+) {
+  const system = `${SYNTHESIS_SYSTEM_PROMPT}\n\n${instructions}\n반드시 JSON 객체 하나만 출력한다.`;
+  async function call() {
+    const message = await anthropic.messages.create({
+      model,
+      max_tokens: 1400,
+      system: [
+        { type: "text", text: system, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [{ role: "user", content: JSON.stringify(payload) }],
+    });
+    return parseJson<T>(extractText(message));
+  }
+  return (await call()) ?? (await call());
+}
+
+// 단계 구현
+export async function extractDimensions({
+  anthropic,
+  branches,
+}: {
+  anthropic: Anthropic;
+  branches: BranchInput[];
+}) {
+  const response = await callJson<DimensionResponse>(
+    anthropic,
+    DRAFT_MODEL,
+    `[1단계] 표면 단어가 아니라 동기 차원을 2~8개 추출한다.
+각 차원은 label, description, 관련 branch_ids를 포함한다.
+출력: {"dimensions":[{"label":"","description":"","branch_ids":[""]}],"diversity_warning":null}`,
+    { branches },
+  );
+  if (!response) throw new Error("차원 추출 결과를 해석하지 못했습니다.");
+  const allowedIds = new Set(branches.map((branch) => branch.id));
+  const dimensions: PipelineDimension[] = (response.dimensions ?? [])
+    .filter((dimension) => dimension.label?.trim())
+    .slice(0, 8)
+    .map((dimension, index) => ({
+      id: `dimension-${index + 1}`,
+      label: dimension.label.trim(),
+      description: dimension.description?.trim() ?? "",
+      branch_ids: [...new Set(dimension.branch_ids ?? [])].filter((id) =>
+        allowedIds.has(id),
+      ),
+    }));
+  if (dimensions.length === 0) throw new Error("유효한 차원을 찾지 못했습니다.");
+  return {
+    dimensions,
+    diversity_warning: response.diversity_warning ?? null,
+    model: DRAFT_MODEL,
+  };
+}
+
+export async function generateCombinations({
+  anthropic,
+  branches,
+  dimensions,
+}: {
+  anthropic: Anthropic;
+  branches: BranchInput[];
+  dimensions: PipelineDimension[];
+}) {
+  const response = await callJson<CombinationResponse>(
+    anthropic,
+    DRAFT_MODEL,
+    `[2단계] 유지한 차원만 근거로 생산적 반대 조합을 만든다.
+후보는 2~4개 branch_ids로 구성하고 중복 없이 최대 8개만 반환한다.
+shared_dimension, tension, rationale를 포함한다.
+출력: {"candidates":[{"branch_ids":[""],"shared_dimension":"","tension":"","rationale":""}],"refusal_reason":null}`,
+    { branches, kept_dimensions: dimensions },
+  );
+  if (!response) throw new Error("조합 후보 결과를 해석하지 못했습니다.");
+  const allowedIds = new Set(branches.map((branch) => branch.id));
+  const seen = new Set<string>();
+  const candidates: CombinationCandidate[] = [];
+  for (const candidate of response.candidates ?? []) {
+    const branchIds = [...new Set(candidate.branch_ids ?? [])]
+      .filter((id) => allowedIds.has(id))
+      .slice(0, 4)
+      .sort();
+    const signature = branchIds.join(":");
+    if (branchIds.length < 2 || seen.has(signature)) continue;
+    seen.add(signature);
+    candidates.push({
+      id: `combination-${candidates.length + 1}`,
+      branch_ids: branchIds,
+      shared_dimension: candidate.shared_dimension?.trim() ?? "",
+      tension: candidate.tension?.trim() ?? "",
+      rationale: candidate.rationale?.trim() ?? "",
+    });
+    if (candidates.length === 8) break;
+  }
+  return {
+    candidates,
+    refusal_reason: candidates.length
+      ? null
+      : response.refusal_reason ?? "생산적 반대 조합을 찾지 못했습니다.",
+    model: DRAFT_MODEL,
+  };
+}
+
+async function synthesizeOne({
+  anthropic,
+  branches,
+  dimensions,
+  combination,
+  model,
+  modelTier,
+  previousX,
+}: {
+  anthropic: Anthropic;
+  branches: BranchInput[];
+  dimensions: PipelineDimension[];
+  combination: CombinationCandidate;
+  model: string;
+  modelTier: "draft" | "high";
+  previousX?: string;
+}) {
+  const selectedBranches = branches.filter((branch) =>
+    combination.branch_ids.includes(branch.id),
+  );
+  const quality =
+    modelTier === "high"
+      ? "기존 초안을 다듬는 데 그치지 말고 더 구체적이고 놀라운 제3의 위치를 다시 찾는다."
+      : "저비용 초안이지만 입력을 병렬로 이어붙이거나 평균화하지 않는다.";
+  const response = await callJson<SynthesisResponse>(
+    anthropic,
+    model,
+    `[3단계] ${quality}
+선택 조합과 차원으로 30단어 이내의 구체적인 N+1 한 문장을 만든다.
+핵심 요소를 branch id에 contribution으로 매핑한다. 불가능하면 정직하게 거부한다.
+출력: {"synthesis_possible":true,"X":"","contribution":{"요소":["branch id"]},"refusal_reason":null}`,
+    {
+      branches: selectedBranches,
+      kept_dimensions: dimensions,
+      combination,
+      previous_draft: previousX ?? null,
+    },
+  );
+  if (!response) throw new Error("합성 결과를 해석하지 못했습니다.");
+  return {
+    id: `${combination.id}-${modelTier}-${crypto.randomUUID()}`,
+    combination_id: combination.id,
+    branch_ids: combination.branch_ids,
+    synthesis_possible: response.synthesis_possible === true,
+    X: response.X?.trim() ?? "",
+    contribution: response.contribution ?? {},
+    refusal_reason: response.refusal_reason ?? null,
+    model_tier: modelTier,
+  } satisfies PipelineSynthesis;
+}
+
+export async function synthesizeDrafts({
+  anthropic,
+  branches,
+  dimensions,
+  combinations,
+}: {
+  anthropic: Anthropic;
+  branches: BranchInput[];
+  dimensions: PipelineDimension[];
+  combinations: CombinationCandidate[];
+}) {
+  const results = await Promise.all(
+    combinations.slice(0, 6).map((combination) =>
+      synthesizeOne({
+        anthropic,
+        branches,
+        dimensions,
+        combination,
+        model: DRAFT_MODEL,
+        modelTier: "draft",
+      }),
+    ),
+  );
+  return { results, model: DRAFT_MODEL };
+}
+
+export async function upgradeSynthesis({
+  anthropic,
+  branches,
+  dimensions,
+  combination,
+  previousX,
+}: {
+  anthropic: Anthropic;
+  branches: BranchInput[];
+  dimensions: PipelineDimension[];
+  combination: CombinationCandidate;
+  previousX: string;
+}) {
+  const result = await synthesizeOne({
+    anthropic,
+    branches,
+    dimensions,
+    combination,
+    model: HIGH_MODEL,
+    modelTier: "high",
+    previousX,
+  });
+  return { result, model: HIGH_MODEL };
+}
