@@ -72,25 +72,46 @@ async function callJson<T>(
   model: string,
   instructions: string,
   payload: unknown,
+  options: {
+    schema?: Anthropic.Messages.JSONOutputFormat["schema"];
+    maxTokens?: number;
+  } = {},
 ) {
   const system = `${PIPELINE_SYSTEM_PROMPT}\n\n${instructions}`;
   const stage = instructions.match(/^\[([^\]]+)\]/)?.[1] ?? "unknown";
-  async function call() {
-    console.info("[synthesis-pipeline] model call started", { stage, model });
+  async function call(attempt: number) {
+    const maxTokens = Math.min(
+      (options.maxTokens ?? 1400) * 2 ** (attempt - 1),
+      8192,
+    );
+    console.info("[synthesis-pipeline] model call started", {
+      stage,
+      model,
+      attempt,
+      maxTokens,
+    });
     try {
       const message = await anthropic.messages.create({
         model,
-        max_tokens: 1400,
+        max_tokens: maxTokens,
         system: [
           { type: "text", text: system, cache_control: { type: "ephemeral" } },
         ],
         messages: [{ role: "user", content: JSON.stringify(payload) }],
+        output_config: options.schema
+          ? { format: { type: "json_schema", schema: options.schema } }
+          : undefined,
       });
-      const parsed = parseJson<T>(extractText(message));
+      const raw = extractText(message);
+      const parsed = parseJson<T>(raw);
       console.info("[synthesis-pipeline] model call completed", {
         stage,
         model,
+        attempt,
+        maxTokens,
         stopReason: message.stop_reason,
+        outputTokens: message.usage.output_tokens,
+        responseChars: raw.length,
         parsed: parsed !== null,
       });
       return parsed;
@@ -103,7 +124,7 @@ async function callJson<T>(
       throw cause;
     }
   }
-  return (await call()) ?? (await call());
+  return (await call(1)) ?? (await call(2));
 }
 
 // 단계 구현
@@ -114,13 +135,58 @@ export async function extractDimensions({
   anthropic: Anthropic;
   branches: BranchInput[];
 }) {
+  // UUID를 그대로 반복 출력하면 가지가 많을 때 JSON만으로 출력 토큰을
+  // 소진한다. 모델에는 짧은 별칭을 주고 응답을 받은 뒤 원래 ID로 복원한다.
+  const compactIdByOriginal = new Map(
+    branches.map((branch, index) => [branch.id, `b${index + 1}`]),
+  );
+  const originalIdByCompact = new Map(
+    [...compactIdByOriginal].map(([originalId, compactId]) => [
+      compactId,
+      originalId,
+    ]),
+  );
+  const compactBranches = branches.map((branch) => ({
+    ...branch,
+    id: compactIdByOriginal.get(branch.id)!,
+  }));
   const response = await callJson<DimensionResponse>(
     anthropic,
     DRAFT_MODEL,
     `[1단계] 표면 단어가 아니라 동기 차원을 2~8개 추출한다.
 각 차원은 label, description, 관련 branch_ids를 포함한다.
-출력: {"dimensions":[{"label":"","description":"","branch_ids":[""]}],"diversity_warning":null}`,
-    { branches },
+branch_ids에는 입력에 표시된 b1, b2 형식의 짧은 ID만 사용한다.
+설명은 차원당 200자 이내로 간결하게 쓴다.`,
+    { branches: compactBranches },
+    {
+      maxTokens: 2400,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["dimensions", "diversity_warning"],
+        properties: {
+          dimensions: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["label", "description", "branch_ids"],
+              properties: {
+                label: { type: "string" },
+                description: { type: "string" },
+                branch_ids: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+            },
+          },
+          diversity_warning: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+          },
+        },
+      },
+    },
   );
   if (!response) throw new Error("차원 추출 결과를 해석하지 못했습니다.");
   const allowedIds = new Set(branches.map((branch) => branch.id));
@@ -136,9 +202,10 @@ export async function extractDimensions({
       const branchIds =
         typeof dimension === "string"
           ? branches.map((branch) => branch.id)
-          : [...new Set(dimension.branch_ids ?? [])].filter((id) =>
-              allowedIds.has(id),
-            );
+          : [...new Set(dimension.branch_ids ?? [])].flatMap((id) => {
+              const originalId = originalIdByCompact.get(id) ?? id;
+              return allowedIds.has(originalId) ? [originalId] : [];
+            });
 
       return [
         {
