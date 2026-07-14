@@ -112,16 +112,25 @@ export function TreeView({
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">🌳 나무</h1>
-          <p className="text-sm text-muted-foreground">
-            가지 {branches.length}개
-            {" · "}{selectedIds.size}개 선택됨
-          </p>
+    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
+      <header className="mb-6 overflow-hidden rounded-2xl border bg-[linear-gradient(135deg,var(--card)_55%,oklch(0.96_0.035_160))] p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              논의가 멈춘 순간
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              결론을 닫지 말고, 다음 각도를 여세요.
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              흩어진 직감에서 아무도 놓지 않았던 N+1 관점을 찾고, 팀이 바로 반응할 수 있는 한 질문으로 논의를 다시 엽니다.
+            </p>
+          </div>
+          <div className="rounded-full border bg-background/80 px-3 py-1.5 font-mono text-xs text-muted-foreground">
+            가지 {branches.length} · 선택 {selectedIds.size}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -138,10 +147,7 @@ export function TreeView({
           >
             전체 해제
           </Button>
-          <SynthesizeButton
-            branches={branches}
-            selectedIds={Array.from(selectedIds)}
-          />
+          <SynthesizeButton branches={branches} selectedIds={Array.from(selectedIds)} />
         </div>
       </header>
 

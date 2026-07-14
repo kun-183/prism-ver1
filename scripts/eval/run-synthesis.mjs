@@ -37,24 +37,68 @@ const anthropic = new Anthropic();
 
 async function runCase(file) {
   const testCase = JSON.parse(fs.readFileSync(path.join(casesDir, file), "utf8"));
+  const selection = testCase.material_selection?.selected_comment_indices ?? null;
+  const selectedBranches = selection
+    ? testCase.branches.map((branch) => ({
+        ...branch,
+        comments: branch.comments.filter((_, index) =>
+          (selection[branch.id] ?? []).includes(index),
+        ),
+      }))
+    : testCase.branches;
   const started = Date.now();
   const { result, stageFailures } = await runSynthesis({
     anthropic,
     model,
     systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
-    branches: testCase.branches,
+    branches: selectedBranches,
   });
+
+  const contractIssues = [];
+  if (stageFailures.length) contractIssues.push(`stage failure: ${stageFailures.join(", ")}`);
+  if (!result && stageFailures.length === 0) contractIssues.push("result missing");
+  if (result?.synthesis_possible) {
+    if (!result.catalyst?.provocation) contractIssues.push("provocation missing");
+    if (!result.catalyst?.reframe) contractIssues.push("reframe missing");
+    if (!result.catalyst?.tensions?.length) contractIssues.push("tensions missing");
+    if (!result.catalyst?.discussion_question) contractIssues.push("discussion_question missing");
+    if (result.X !== result.catalyst?.provocation) contractIssues.push("X compatibility mismatch");
+  } else if (result) {
+    if (result.X) contractIssues.push("refusal must have empty X");
+    if (result.catalyst !== null) contractIssues.push("refusal must have null catalyst");
+  }
+
+  let unfilteredBaseline = null;
+  if (selection && testCase.material_selection.compare_unfiltered === true) {
+    unfilteredBaseline = await runSynthesis({
+      anthropic,
+      model,
+      systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
+      branches: testCase.branches,
+    });
+  }
 
   const out = {
     case: testCase,
     model,
     elapsed_ms: Date.now() - started,
     stage_failures: stageFailures,
+    material_selection: selection
+      ? {
+          rule: "Only explicitly selected comment indices are synthesis material",
+          selected_comment_indices: selection,
+          unfiltered_baseline: unfilteredBaseline,
+        }
+      : null,
+    product_contract: {
+      passed: contractIssues.length === 0,
+      issues: contractIssues,
+    },
     result,
   };
   fs.writeFileSync(path.join(resultsDir, file), JSON.stringify(out, null, 2), "utf8");
   console.log(
-    `${file}: ${stageFailures.length ? "STAGE_FAIL " + stageFailures.join(",") : result.synthesis_possible ? "SYNTHESIZED" : "REFUSED"} (${out.elapsed_ms}ms)`,
+    `${file}: ${stageFailures.length ? "STAGE_FAIL " + stageFailures.join(",") : result.synthesis_possible ? "SYNTHESIZED" : "REFUSED"}${contractIssues.length ? " CONTRACT_FAIL" : ""} (${out.elapsed_ms}ms)`,
   );
 }
 

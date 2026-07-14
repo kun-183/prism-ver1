@@ -17,9 +17,17 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 export type BranchInput = { id: string; idea: string; comments: string[] };
 
+export type DiscussionCatalyst = {
+  provocation: string;
+  reframe: string;
+  tensions: string[];
+  discussion_question: string;
+};
+
 export type SynthesisResult = {
   synthesis_possible: boolean;
   X: string;
+  catalyst: DiscussionCatalyst | null;
   dimensions: string[];
   orthogonal_pairs: { a: string; b: string; shared_dimension: string }[];
   contribution: Record<string, string[]>;
@@ -46,7 +54,7 @@ type OrthogonalityStage = {
 
 type XStage = {
   synthesis_possible: boolean;
-  X: string;
+  catalyst: DiscussionCatalyst | null;
   refusal_reason?: string | null;
 };
 
@@ -86,7 +94,7 @@ export async function runSynthesis({
   async function callModel(userContent: string, stageSystem: string) {
     const msg = await anthropic.messages.create({
       model,
-      max_tokens: 1500,
+      max_tokens: 3000,
       system: [
         {
           type: "text",
@@ -132,6 +140,7 @@ ${JSON.stringify(outputSchema)}`;
       result: {
         synthesis_possible: false,
         X: "",
+        catalyst: null,
         dimensions: dim?.dimensions ?? [],
         orthogonal_pairs: ortho?.orthogonal_pairs ?? [],
         contribution: {}, // 거부 시 기여 매핑은 무의미 — 항상 비운다
@@ -163,6 +172,8 @@ ${JSON.stringify(outputSchema)}`;
       stageInstructions: `[독립 단계 호출 — 2단계 직교 쌍 탐지]
 이번 호출은 직교 쌍 탐지만 수행한다. X를 생성하지 마라.
 같은 차원의 양극을 차지하는 "생산적 반대" 쌍만 찾아라.
+극성 반대뿐 아니라 구체적 실행과 넓은 범위, 단기 효율과 장기 학습처럼 범위·시간축·추상화 수준이 만드는 생산적 긴장도 탐지하라.
+부분집합 아이디어와 이를 모두 포함하는 상위 아이디어가 함께 있으면, '작게 검증 가능한 구체성 vs 한 번에 통합하려는 범위·복잡성'을 생산적 긴장으로 보고 가장 좁은 가지와 가장 넓은 가지를 쌍으로 반환하라. 단순히 같은 방향이라는 이유로 이 긴장을 버리지 마라.
 실제로 직교 쌍이 없으면(직감들이 사실상 같은 얘기거나, 공통 차원이 전혀 없으면) 억지로 만들지 말고 빈 배열을 반환하라. 빈 배열은 실패가 아니라 정직한 결과다.`,
       payload: {},
       outputSchema: {
@@ -195,32 +206,45 @@ ${JSON.stringify(outputSchema)}`;
     );
   }
 
-  // 3단계: 1·2단계 산출물을 근거로 X 생성.
+  // 3단계: 1·2단계 산출물을 근거로 구조화된 논의 촉매 생성.
   const x = await callStage<XStage>({
     stage: "3_x_generation",
-    stageInstructions: `[의존 단계 호출 — 3단계 X 생성]
-이번 호출은 X 생성만 수행한다.
+    stageInstructions: `[의존 단계 호출 — 3단계 논의 촉매 생성]
+이번 호출은 구조화된 논의 촉매 생성만 수행한다.
 페이로드의 stage1_dimensions(추출된 차원)와 stage2_orthogonal_pairs(직교 쌍)는 앞 단계의 실제 산출물이다. 반드시 이를 근거로 사용하라.
-출력 전 자체 점검 — 하나라도 실패하면 그 X를 버리고 재생성한다:
-1. X가 입력 직감들을 접속사나 나열("~하되 ~하자", "~하고 ~한다", A+B+C 병렬)로 이어붙인 문장이면 실패다. 합성은 이어붙이기가 아니라 공통 차원 위에서 찾은 제3의 위치다.
-2. stage1_dimensions의 주요 차원 각각이 X에 최소 한 번 닿아야 한다. 입력 직감이 많아도(5개 이상) 어느 차원도 조용히 버리지 마라.
-3. X와 각 입력 직감의 유사도가 고르면(평균화) 실패다. 어떤 직감과는 강하게, 어떤 직감과는 약하게 닿아야 한다.
+한 문장에 압축하지 말고 다음 역할을 분리한다: provocation(구체적 N+1 관점), reframe(입력과의 연결 및 새로움), tensions(남겨둘 긴장 1~3개), discussion_question(팀 반응을 여는 한 질문).
+출력 전 자체 점검 — 하나라도 실패하면 그 촉매를 버리고 재생성한다:
+1. provocation이 입력 직감들을 접속사나 나열("~하되 ~하자", "~하고 ~한다", A+B+C 병렬)로 이어붙이면 실패다. 합성은 이어붙이기가 아니라 공통 차원 위에서 찾은 제3의 위치다.
+2. stage1_dimensions의 주요 차원 각각이 catalyst 전체에 최소 한 번 닿아야 한다. 입력 직감이 많아도(5개 이상) 어느 차원도 조용히 버리지 마라.
+3. 촉매와 각 입력 직감의 유사도가 고르면(평균화) 실패다. 어떤 직감과는 강하게, 어떤 직감과는 약하게 닿아야 한다.
 4. stage2_orthogonal_pairs의 양쪽 어느 쪽도 부정하지 않고 공통 차원의 제3 위치로 흡수해야 한다.
-5회 재생성해도 모든 점검을 통과하는 X가 없으면 synthesis_possible을 false로 하고 이유를 밝혀라.`,
+5. discussion_question은 동의·불편·누락 중 하나로 바로 반응할 수 있을 만큼 구체적이어야 한다. 실행 투두를 만들지는 마라.
+5회 재생성해도 모든 점검을 통과하는 촉매가 없으면 synthesis_possible을 false로 하고 이유를 밝혀라.`,
     payload: {
       stage1_dimensions: dim.dimensions ?? [],
       stage2_orthogonal_pairs: pairs,
     },
     outputSchema: {
       synthesis_possible: true,
-      X: "one sentence synthesis result",
+      catalyst: {
+        provocation: "specific N+1 point of view",
+        reframe: "why this changes the discussion",
+        tensions: ["productive tension to preserve"],
+        discussion_question: "one focused question",
+      },
       refusal_reason: null,
     },
   });
 
   if (!x) return { result: null, stageFailures: ["3_x_generation"] };
 
-  if (x.synthesis_possible !== true || !x.X) {
+  if (
+    x.synthesis_possible !== true ||
+    !x.catalyst?.provocation ||
+    !x.catalyst.reframe ||
+    !x.catalyst.discussion_question ||
+    !x.catalyst.tensions?.length
+  ) {
     return refusal(
       x.refusal_reason ?? "이 입력만으로는 N+1 합성을 만들 수 없습니다.",
       dim,
@@ -232,11 +256,11 @@ ${JSON.stringify(outputSchema)}`;
   const contrib = await callStage<ContributionStage>({
     stage: "4_contribution_tracking",
     stageInstructions: `[의존 단계 호출 — 4단계 기여 추적]
-페이로드의 X는 3단계에서 실제로 생성된 최종 문장이다.
-X의 실제 문장에 등장하는 핵심 요소(단어/구)만 contribution의 키로 사용하라. X에 없는 요소를 만들어내지 마라.
+페이로드의 catalyst는 3단계에서 실제로 생성된 최종 논의 촉매다.
+catalyst에 실제로 등장하는 핵심 요소(단어/구)만 contribution의 키로 사용하라. 없는 요소를 만들어내지 마라.
 각 요소가 어느 직감(branch id)에서 왔는지 매핑하라.
 어느 직감에도 매핑할 수 없는 추상어가 X의 30%를 넘으면 valid를 false로 하고 이유를 밝혀라.`,
-    payload: { X: x.X },
+    payload: { catalyst: x.catalyst },
     outputSchema: {
       valid: true,
       contribution: { "X에 실제로 등장하는 요소": ["branch id"] },
@@ -259,7 +283,8 @@ X의 실제 문장에 등장하는 핵심 요소(단어/구)만 contribution의 
     stageFailures: [],
     result: {
       synthesis_possible: true,
-      X: x.X,
+      X: x.catalyst.provocation,
+      catalyst: x.catalyst,
       dimensions: dim.dimensions ?? [],
       orthogonal_pairs: pairs,
       contribution: contrib.contribution ?? {},

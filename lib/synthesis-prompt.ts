@@ -26,18 +26,18 @@ export const SYNTHESIS_SYSTEM_PROMPT = `당신은 Synthesis 엔진입니다.
 - 표면적으로는 반대지만 사실 같은 차원의 양 극단을 차지하는 직감 쌍을 찾는다.
 - 이것이 합성의 핵심 자원이다. 단순 반대가 아니라 "생산적 반대"를 찾는다.
 
-3단계. 합성 X 생성 (아래 제약을 모두 만족할 것)
+3단계. 논의 촉매 생성 (아래 제약을 모두 만족할 것)
 - 제약1 차원 포함성: 추출된 모든 주요 차원을 최소 한 번씩 건드린다.
 - 제약2 유사도 분산성: X와 입력 직감들의 유사도가 고르면 안 된다(평균화 금지). 어떤 직감과는 강하게, 어떤 직감과는 약하게 닿아야 한다.
 - 제약3 직교 쌍 보존: 발견된 직교 쌍의 양쪽을 모두 부정하지 않고, 둘의 공통 차원에서 제3의 위치를 찾아 흡수한다.
-- 제약4 구체성: 사용자가 첫 화면 한 줄로 그릴 수 있는 구체성을 가진다. 추상 명제에 머무르지 않는다.
+- 제약4 구체성: 팀원이 실제 장면을 떠올리고 바로 반응할 수 있는 구체성을 가진다. 추상 명제에 머무르지 않는다.
 - 제약5 비-중복: 입력 직감 어느 것과도 동일하지 않다.
-- 제약6 한 문장 형식: X는 한 문장. 한 호흡에 읽을 수 있는 길이(30단어 이내 권장).
+- 제약6 구조화 형식: 한 문장에 압축하지 않는다. provocation, reframe, tensions, discussion_question으로 역할을 나눠 압축 손실을 줄인다.
 - 제약7 차원 추출 깊이: 표면이 아닌 동기 차원에서 추출했는지 자체 점검한다.
 
 4단계. 기여 추적
-- X의 각 핵심 요소(단어/구)가 어느 직감에서 왔는지 매핑한다.
-- 매핑 불가능한 추상어가 30%를 넘으면 X를 재생성한다.
+- 촉매의 각 핵심 요소(단어/구)가 어느 직감에서 왔는지 매핑한다.
+- 매핑 불가능한 추상어가 30%를 넘으면 촉매를 재생성한다.
 
 [입력 다양성 점검]
 - 추출된 차원 수가 입력 직감 수의 50% 미만이면 "다양성 부족"으로 판단하고 diversity_warning에 명시한다.
@@ -52,7 +52,13 @@ export const SYNTHESIS_SYSTEM_PROMPT = `당신은 Synthesis 엔진입니다.
 [출력 — 반드시 아래 JSON만. 다른 텍스트·마크다운·설명 금지]
 {
   "synthesis_possible": true 또는 false,
-  "X": "한 문장 합성 결과 (synthesis_possible이 false면 빈 문자열)",
+  "X": "provocation 대표 문장 (하위 호환용, synthesis_possible이 false면 빈 문자열)",
+  "catalyst": {
+    "provocation": "기존 선택지를 재배치하는 구체적 N+1 관점",
+    "reframe": "왜 단순 평균이나 재포장이 아닌지 설명",
+    "tensions": ["성급히 닫지 않을 생산적 긴장"],
+    "discussion_question": "팀이 바로 반응할 초점 질문"
+  },
   "dimensions": ["추출된 차원1", "차원2", ...],
   "orthogonal_pairs": [
     {"a": "직감ID", "b": "직감ID", "shared_dimension": "공통 차원"}
@@ -69,6 +75,12 @@ export const SYNTHESIS_SYSTEM_PROMPT = `당신은 Synthesis 엔진입니다.
 export type SynthesisResult = {
   synthesis_possible: boolean;
   X: string;
+  catalyst: {
+    provocation: string;
+    reframe: string;
+    tensions: string[];
+    discussion_question: string;
+  } | null;
   dimensions: string[];
   orthogonal_pairs: { a: string; b: string; shared_dimension: string }[];
   contribution: Record<string, string[]>;

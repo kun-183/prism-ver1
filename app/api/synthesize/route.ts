@@ -6,8 +6,8 @@ import {
   generateCombinations,
   synthesizeDrafts,
   upgradeSynthesis,
+  type PipelineBranchInput,
 } from "@/lib/synthesis-pipeline";
-import type { BranchInput } from "@/lib/synthesis-engine";
 import type {
   CombinationCandidate,
   PipelineDimension,
@@ -32,6 +32,7 @@ type SynthesizeBody = {
   combinations?: CombinationCandidate[];
   combination?: CombinationCandidate;
   previousX?: string;
+  selectedCommentIds?: string[];
 };
 
 function isStringArray(value: unknown): value is string[] {
@@ -47,13 +48,24 @@ async function saveResults(
   supabase: Awaited<ReturnType<typeof createClient>>,
   results: PipelineSynthesis[],
 ) {
-  if (results.length === 0) return;
-  await supabase.from("synthesis_runs").insert(
+  if (results.length === 0) return results;
+  const { data, error } = await supabase.from("synthesis_runs").insert(
     results.map((result) => ({
       input_branch_ids: result.branch_ids,
-      result: { pipeline_version: 2, ...result },
+      result: { pipeline_version: 3, ...result },
     })),
+  ).select("id, result");
+  if (error) throw new Error(`합성 결과 저장 실패: ${error.message}`);
+  const runIdByResultId = new Map(
+    (data ?? []).map((row: { id: string; result: { id?: string } }) => [
+      row.result.id,
+      row.id,
+    ]),
   );
+  return results.map((result) => ({
+    ...result,
+    run_id: runIdByResultId.get(result.id) ?? null,
+  }));
 }
 
 export async function POST(request: Request) {
@@ -79,7 +91,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from("branches")
-    .select("id, idea, comments(body)")
+    .select("id, idea, comments(id, body)")
     .in("id", body.branchIds)
     .order("created_at");
   if (error) {
@@ -88,15 +100,15 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-  const branches: BranchInput[] = (data ?? []).map(
+  const branches: PipelineBranchInput[] = (data ?? []).map(
     (branch: {
       id: string;
       idea: string;
-      comments: { body: string }[] | null;
+      comments: { id: string; body: string }[] | null;
     }) => ({
       id: branch.id,
       idea: branch.idea,
-      comments: (branch.comments ?? []).map((comment) => comment.body),
+      comments: branch.comments ?? [],
     }),
   );
   if (branches.length === 0) {
@@ -114,6 +126,11 @@ export async function POST(request: Request) {
     }
     const dimensions = Array.isArray(body.dimensions)
       ? body.dimensions.slice(0, 8)
+      : [];
+    const selectedCommentIds = Array.isArray(body.selectedCommentIds)
+      ? body.selectedCommentIds
+          .filter((id): id is string => typeof id === "string")
+          .slice(0, 500)
       : [];
     if (dimensions.length === 0) {
       return Response.json(
@@ -141,9 +158,10 @@ export async function POST(request: Request) {
         branches,
         dimensions,
         combinations,
+        selectedCommentIds,
       });
-      await saveResults(supabase, response.results);
-      return Response.json(response);
+      const results = await saveResults(supabase, response.results);
+      return Response.json({ ...response, results });
     }
     if (body.action === "upgrade_synthesis") {
       if (!body.combination || typeof body.previousX !== "string") {
@@ -158,9 +176,10 @@ export async function POST(request: Request) {
         dimensions,
         combination: body.combination,
         previousX: body.previousX,
+        selectedCommentIds,
       });
-      await saveResults(supabase, [response.result]);
-      return Response.json(response);
+      const [result] = await saveResults(supabase, [response.result]);
+      return Response.json({ ...response, result });
     }
     return Response.json({ error: "지원하지 않는 단계입니다." }, { status: 400 });
   } catch (cause) {

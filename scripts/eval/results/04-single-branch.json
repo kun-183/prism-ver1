@@ -16,19 +16,25 @@
     ]
   },
   "model": "claude-sonnet-4-6",
-  "elapsed_ms": 3981,
+  "elapsed_ms": 5138,
   "stage_failures": [],
+  "material_selection": null,
+  "product_contract": {
+    "passed": true,
+    "issues": []
+  },
   "result": {
     "synthesis_possible": false,
     "X": "",
+    "catalyst": null,
     "dimensions": [
-      "공유 자원의 소유 vs 접근 방식",
-      "비용 효율성 vs 자율성",
-      "집단적 책임과 거버넌스"
+      "공유 자원의 소유 방식 (구매 vs 임대)",
+      "운영 책임의 귀속 (공동체 내부 vs 외부 위임)",
+      "비용 구조 인식 (초기 고정비 vs 변동비)"
     ],
     "orthogonal_pairs": [],
     "contribution": {},
-    "diversity_warning": "다양성 부족: 입력 직감이 1개로, 추출된 차원 수(3)가 입력 수(1)의 50% 이상이나 단일 직감에서 모든 차원이 도출되어 합성 다양성이 근본적으로 제한됨",
-    "refusal_reason": "입력 직감이 1개뿐이므로 직교 쌍 탐지 불가능. 직교 쌍은 최소 2개의 직감이 필요하다."
+    "diversity_warning": "다양성 부족: 추출된 차원 수(3)가 입력 직감 수(1)의 50% 이상이지만, 입력 직감이 1개뿐이므로 직교 쌍 탐지 및 합성이 불가능할 수 있음. 단일 직감 입력으로 N+1 합성의 전제 조건(복수 관점)을 충족하지 못함.",
+    "refusal_reason": "입력 직감이 1개뿐이므로 쌍을 형성할 수 없다."
   }
 }

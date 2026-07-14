@@ -27,19 +27,25 @@
     ]
   },
   "model": "claude-sonnet-4-6",
-  "elapsed_ms": 3760,
+  "elapsed_ms": 4361,
   "stage_failures": [],
+  "material_selection": null,
+  "product_contract": {
+    "passed": true,
+    "issues": []
+  },
   "result": {
     "synthesis_possible": false,
     "X": "",
+    "catalyst": null,
     "dimensions": [
-      "반복 수작업 제거",
-      "정보 보존 및 공유",
-      "자동화 트리거 시점"
+      "반복 행정 노동의 자동화",
+      "문서화 책임의 탈인격화",
+      "도구 통합(회의→저장소) 흐름"
     ],
     "orthogonal_pairs": [],
     "contribution": {},
-    "diversity_warning": "과집중: 입력 직감 3개 중 3개(100%)가 '회의록 자동 요약 자동화' 차원에 집중되어 있음",
-    "refusal_reason": "세 직감 모두 '회의 내용 자동 요약'이라는 동일 차원에 위치하며, 표면 표현만 다를 뿐 동기·방향·극성이 실질적으로 동일하다. 생산적 반대를 형성하는 쌍이 존재하지 않는다."
+    "diversity_warning": "과집중: 입력 직감 3개 중 3개(100%)가 '반복 행정 노동의 자동화' 차원에 집중됨. 직교 쌍 탐지 및 생산적 합성이 어려울 수 있음.",
+    "refusal_reason": "세 직감 모두 '회의록 자동 요약/정리'라는 동일한 방향을 가리키며, 공통 차원(자동화, 편의성)에서 양 극단을 형성하는 생산적 반대 쌍이 존재하지 않는다."
   }
 }

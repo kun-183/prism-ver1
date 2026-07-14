@@ -3,10 +3,16 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import type {
   CombinationCandidate,
+  DiscussionCatalyst,
   PipelineDimension,
   PipelineSynthesis,
 } from "@/lib/types";
-import type { BranchInput } from "@/lib/synthesis-engine";
+
+export type PipelineBranchInput = {
+  id: string;
+  idea: string;
+  comments: Array<{ id: string; body: string }>;
+};
 
 const DRAFT_MODEL =
   process.env.SYNTHESIS_DRAFT_MODEL ?? "claude-haiku-4-5-20251001";
@@ -43,7 +49,7 @@ type CombinationResponse = {
 
 type SynthesisResponse = {
   synthesis_possible: boolean;
-  X: string;
+  catalyst: DiscussionCatalyst | null;
   contribution: Record<string, string[]>;
   refusal_reason?: string | null;
 };
@@ -133,7 +139,7 @@ export async function extractDimensions({
   branches,
 }: {
   anthropic: Anthropic;
-  branches: BranchInput[];
+  branches: PipelineBranchInput[];
 }) {
   // UUID를 그대로 반복 출력하면 가지가 많을 때 JSON만으로 출력 토큰을
   // 소진한다. 모델에는 짧은 별칭을 주고 응답을 받은 뒤 원래 ID로 복원한다.
@@ -233,7 +239,7 @@ export async function generateCombinations({
   dimensions,
 }: {
   anthropic: Anthropic;
-  branches: BranchInput[];
+  branches: PipelineBranchInput[];
   dimensions: PipelineDimension[];
 }) {
   const response = await callJson<CombinationResponse>(
@@ -283,17 +289,33 @@ async function synthesizeOne({
   model,
   modelTier,
   previousX,
+  selectedCommentIds,
 }: {
   anthropic: Anthropic;
-  branches: BranchInput[];
+  branches: PipelineBranchInput[];
   dimensions: PipelineDimension[];
   combination: CombinationCandidate;
   model: string;
   modelTier: "draft" | "high";
   previousX?: string;
+  selectedCommentIds: string[];
 }) {
-  const selectedBranches = branches.filter((branch) =>
+  const selectedCommentIdSet = new Set(selectedCommentIds);
+  const combinationBranches = branches.filter((branch) =>
     combination.branch_ids.includes(branch.id),
+  );
+  const availableCommentCount = combinationBranches.reduce(
+    (count, branch) => count + branch.comments.length,
+    0,
+  );
+  const selectedBranches = combinationBranches.map((branch) => ({
+    ...branch,
+    comments: branch.comments.filter((comment) =>
+      selectedCommentIdSet.has(comment.id),
+    ),
+  }));
+  const selectedCommentIdsForCombination = selectedBranches.flatMap((branch) =>
+    branch.comments.map((comment) => comment.id),
   );
   const quality =
     modelTier === "high"
@@ -302,26 +324,58 @@ async function synthesizeOne({
   const response = await callJson<SynthesisResponse>(
     anthropic,
     model,
-    `[3단계] ${quality}
-선택 조합과 차원으로 30단어 이내의 구체적인 N+1 한 문장을 만든다.
-핵심 요소를 branch id에 contribution으로 매핑한다. 불가능하면 정직하게 거부한다.
-출력: {"synthesis_possible":true,"X":"","contribution":{"요소":["branch id"]},"refusal_reason":null}`,
+    `[3·4단계] ${quality}
+입력의 가지 본문은 핵심 재료이고 comments는 사용자가 의도적으로 남긴 보조 재료다. 제외된 댓글을 추측하거나 되살리지 않는다.
+결론 한 문장에 모든 것을 압축하지 말고, 팀 논의를 도약시키는 구조화된 촉매를 만든다.
+- provocation: 기존 선택지를 재배치하는 구체적이고 놀라운 N+1 관점 1~2문장
+- reframe: 왜 이 관점이 단순 평균이나 재포장이 아닌지 입력 근거와 함께 2~3문장
+- tensions: 다음 논의에서 성급히 닫지 말아야 할 생산적 긴장 1~3개
+- discussion_question: 팀원이 동의·불편·누락 중 하나로 바로 반응할 수 있는 초점 질문 1개
+추상 구호, 실행 투두, 입력의 병렬 나열을 피한다. 핵심 요소는 branch id에 contribution으로 매핑한다.
+출력: {"synthesis_possible":true,"catalyst":{"provocation":"","reframe":"","tensions":[""],"discussion_question":""},"contribution":{"요소":["branch id"]},"refusal_reason":null}`,
     {
       branches: selectedBranches,
       kept_dimensions: dimensions,
       combination,
       previous_draft: previousX ?? null,
     },
+    { maxTokens: 2600 },
   );
   if (!response) throw new Error("합성 결과를 해석하지 못했습니다.");
+  const catalyst = response.catalyst;
+  const hasValidCatalyst = Boolean(
+    catalyst?.provocation?.trim() &&
+      catalyst.reframe?.trim() &&
+      catalyst.discussion_question?.trim() &&
+      Array.isArray(catalyst.tensions) &&
+      catalyst.tensions.some((tension) => tension.trim()),
+  );
   return {
     id: `${combination.id}-${modelTier}-${crypto.randomUUID()}`,
+    run_id: null,
     combination_id: combination.id,
     branch_ids: combination.branch_ids,
-    synthesis_possible: response.synthesis_possible === true,
-    X: response.X?.trim() ?? "",
+    synthesis_possible: response.synthesis_possible === true && hasValidCatalyst,
+    X: hasValidCatalyst ? catalyst!.provocation.trim() : "",
+    catalyst: hasValidCatalyst
+      ? {
+          provocation: catalyst!.provocation.trim(),
+          reframe: catalyst!.reframe.trim(),
+          tensions: catalyst!.tensions
+            .map((tension) => tension.trim())
+            .filter(Boolean)
+            .slice(0, 3),
+          discussion_question: catalyst!.discussion_question.trim(),
+        }
+      : null,
     contribution: response.contribution ?? {},
-    refusal_reason: response.refusal_reason ?? null,
+    material_selection: {
+      selected_comment_ids: selectedCommentIdsForCombination,
+      available_comment_count: availableCommentCount,
+    },
+    refusal_reason:
+      response.refusal_reason ??
+      (hasValidCatalyst ? null : "논의를 도약시킬 만큼 구체적인 촉매 형식을 만들지 못했습니다."),
     model_tier: modelTier,
   } satisfies PipelineSynthesis;
 }
@@ -331,11 +385,13 @@ export async function synthesizeDrafts({
   branches,
   dimensions,
   combinations,
+  selectedCommentIds,
 }: {
   anthropic: Anthropic;
-  branches: BranchInput[];
+  branches: PipelineBranchInput[];
   dimensions: PipelineDimension[];
   combinations: CombinationCandidate[];
+  selectedCommentIds: string[];
 }) {
   const results = await Promise.all(
     combinations.slice(0, 6).map((combination) =>
@@ -346,6 +402,7 @@ export async function synthesizeDrafts({
         combination,
         model: DRAFT_MODEL,
         modelTier: "draft",
+        selectedCommentIds,
       }),
     ),
   );
@@ -358,12 +415,14 @@ export async function upgradeSynthesis({
   dimensions,
   combination,
   previousX,
+  selectedCommentIds,
 }: {
   anthropic: Anthropic;
-  branches: BranchInput[];
+  branches: PipelineBranchInput[];
   dimensions: PipelineDimension[];
   combination: CombinationCandidate;
   previousX: string;
+  selectedCommentIds: string[];
 }) {
   const result = await synthesizeOne({
     anthropic,
@@ -373,6 +432,7 @@ export async function upgradeSynthesis({
     model: HIGH_MODEL,
     modelTier: "high",
     previousX,
+    selectedCommentIds,
   });
   return { result, model: HIGH_MODEL };
 }

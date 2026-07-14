@@ -1,5 +1,7 @@
 # Synthesis
 
+> 제품의 현재 목적·출력 형식·사용 장면은 [`PRODUCT_DEFINITION.md`](./PRODUCT_DEFINITION.md)에 정리되어 있습니다.
+
 흩어진 아이디어를 비대면·비동기로 쌓아두고, **돌려보기**를 누르면 Claude가 입력
 어느 것과도 같지 않은 **N+1번째 결론(한 문장 X)** 을 합성해주는 회의 도구.
 selection이 아니라 synthesis. AI가 합성을 대체하지 않고 증폭한다.

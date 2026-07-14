@@ -31,17 +31,34 @@ export default async function Home() {
   // 미로그인 → 랜딩
   if (!user) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Synthesis
-        </h1>
-        <p className="mt-3 max-w-md text-balance text-muted-foreground">
-          흩어진 아이디어를 던져두면, 하나를 <em>고르는</em> 게 아니라 누구도
-          혼자선 떠올리지 못했을 <strong>N+1번째</strong> 답을 꺼내주는 비대면
-          회의 도구.
-        </p>
-        <div className="mt-8">
-          <SignInButton />
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_20%,oklch(0.93_0.06_160),transparent_35%),radial-gradient(circle_at_15%_80%,oklch(0.95_0.03_250),transparent_30%)]" />
+        <div className="w-full max-w-3xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+            Discussion catalyst for teams
+          </p>
+          <h1 className="mt-4 text-balance text-4xl font-bold tracking-[-0.04em] sm:text-6xl">
+            더 좋은 결론보다,
+            <br />더 멀리 가는 논의.
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-balance text-base leading-7 text-muted-foreground sm:text-lg">
+            Synthesis는 흩어진 직감을 평균내지 않습니다. 아무도 생각하지 못한 N+1 관점을 던지고, 팀이 다시 말하게 만드는 질문으로 바꿉니다.
+          </p>
+          <div className="mx-auto mt-8 grid max-w-2xl gap-2 text-left text-sm sm:grid-cols-3">
+            {[
+              ["01", "관점을 고르고"],
+              ["02", "근거를 선별하고"],
+              ["03", "논의를 다시 연다"],
+            ].map(([number, label]) => (
+              <div key={number} className="rounded-xl border bg-background/75 p-3 backdrop-blur">
+                <span className="font-mono text-xs text-emerald-700">{number}</span>
+                <p className="mt-1 font-medium">{label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8">
+            <SignInButton />
+          </div>
         </div>
       </main>
     );
@@ -69,7 +86,7 @@ export default async function Home() {
 
   return (
     <main className="flex-1">
-      <div className="mx-auto flex w-full max-w-2xl items-center justify-end px-4 pt-3">
+      <div className="mx-auto flex w-full max-w-3xl items-center justify-end px-4 pt-3">
         <span className="mr-2 text-xs text-muted-foreground">{user.email}</span>
         <SignOutButton />
       </div>
