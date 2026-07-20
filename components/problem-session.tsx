@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth-button";
 import { NewBranchForm } from "@/components/new-branch-form";
 import { BranchCard } from "@/components/branch-card";
+import { SolutionWorkspace } from "@/components/solution-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,9 @@ import type {
   ProblemNodeVote,
   ProblemSession,
   Project,
+  SolutionCandidate,
+  SolutionReference,
+  SolutionSynthesisRun,
 } from "@/lib/types";
 
 const STEPS = [
@@ -48,6 +52,7 @@ const STEPS = [
   { id: 3, label: "데이터 검증", detail: "발견과 반증" },
   { id: 4, label: "직감 수렴", detail: "사람이 선택" },
   { id: 5, label: "본질 정의", detail: "문서로 남김" },
+  { id: 6, label: "솔루션 발산", detail: "5계열과 선례" },
 ] as const;
 
 const ROLE_COPY = {
@@ -88,6 +93,9 @@ export function ProblemSessionWorkspace({
   initialNodeVotes,
   initialEvidence,
   initialEvidenceVotes,
+  initialSolutionCandidates,
+  initialSolutionReferences,
+  initialSolutionSyntheses,
 }: {
   project: Project;
   currentUserId: string;
@@ -98,6 +106,9 @@ export function ProblemSessionWorkspace({
   initialNodeVotes: ProblemNodeVote[];
   initialEvidence: ProblemEvidence[];
   initialEvidenceVotes: ProblemEvidenceVote[];
+  initialSolutionCandidates: SolutionCandidate[];
+  initialSolutionReferences: SolutionReference[];
+  initialSolutionSyntheses: SolutionSynthesisRun[];
 }) {
   const [session, setSession] = useState<ProblemSession | null>(initialSession);
   const [draft, setDraft] = useState<SessionDraft>(initialSession ?? EMPTY_SESSION);
@@ -341,7 +352,7 @@ export function ProblemSessionWorkspace({
   }
 
   const finalDefinition = session?.final_definition;
-  const activeStage = finalDefinition ? 5 : evidence.length ? 3 : nodes.length ? 2 : 1;
+  const activeStage = finalDefinition ? 6 : evidence.length ? 3 : nodes.length ? 2 : 1;
 
   return (
     <main className="min-h-full min-w-0 flex-1 overflow-x-clip bg-[#f5f5f7] text-[#1d1d1f] [overflow-wrap:anywhere]">
@@ -362,7 +373,7 @@ export function ProblemSessionWorkspace({
       </header>
 
       <div className="overflow-x-auto border-b border-black/[.05] bg-white/55 backdrop-blur-xl">
-        <div className="mx-auto grid min-w-[700px] w-full max-w-[1500px] grid-cols-5 gap-2 px-3 py-2 sm:px-7">
+        <div className="mx-auto grid min-w-[840px] w-full max-w-[1500px] grid-cols-6 gap-2 px-3 py-2 sm:px-7">
           {STEPS.map((step) => (
             <div key={step.id} className={`rounded-xl px-3 py-2.5 sm:px-4 ${step.id === activeStage ? "bg-white text-[#0071e3] shadow-sm ring-1 ring-black/[.05]" : step.id < activeStage ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>
               <div className="flex items-center gap-2">
@@ -554,6 +565,14 @@ export function ProblemSessionWorkspace({
             </div>
           )}
         </section>
+        {finalDefinition && <SolutionWorkspace
+          projectId={project.id}
+          currentUserId={currentUserId}
+          definition={finalDefinition}
+          initialCandidates={initialSolutionCandidates}
+          initialReferences={initialSolutionReferences}
+          initialSyntheses={initialSolutionSyntheses}
+        />}
       </div>
     </main>
   );

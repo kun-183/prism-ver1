@@ -149,3 +149,69 @@ export type PipelineSynthesis = {
 };
 
 export type CatalystReaction = "pulled" | "uneasy" | "missing";
+
+// --- 솔루션 도출 단계 (본질 정의 이후) ---
+// 발산은 5계열로 고정한다(터널링 방지). 값은 DB check 제약과 일치해야 한다.
+export type SolutionCategory =
+  | "digital"
+  | "environment"
+  | "policy"
+  | "service"
+  | "community";
+
+export const SOLUTION_CATEGORIES: {
+  key: SolutionCategory;
+  label: string;
+  hint: string;
+}[] = [
+  { key: "digital", label: "디지털 제품", hint: "앱·웹·플랫폼·자동화" },
+  { key: "environment", label: "환경·공간 설계", hint: "시설·배치·CPTED·물리 환경" },
+  { key: "policy", label: "정책·제도", hint: "규제·인센티브·법·표준" },
+  { key: "service", label: "서비스·운영", hint: "프로세스·인력·운영 모델" },
+  { key: "community", label: "커뮤니티·행동변화", hint: "캠페인·교육·자조·문화" },
+];
+
+export type SolutionCandidate = {
+  id: string;
+  project_id: string;
+  author_id: string | null;
+  source: "ai" | "human";
+  category: SolutionCategory;
+  label: string;
+  statement: string;
+  essence_link: string;
+  tradeoff: string;
+  created_at: string;
+};
+
+export type SolutionReference = {
+  id: string;
+  project_id: string;
+  candidate_id: string;
+  author_id: string | null;
+  source: "web" | "human";
+  title: string;
+  publisher: string;
+  url: string;
+  finding: string;
+  data_date: string;
+  created_at: string;
+};
+
+// synthesis 버튼 산출 — 기존 DiscussionCatalyst 형식을 그대로 재사용한다.
+export type SolutionSynthesis = {
+  synthesis_possible: boolean;
+  catalyst: DiscussionCatalyst | null;
+  contribution: Record<string, string[]>;
+  refusal_reason: string | null;
+  model: string;
+};
+
+export type SolutionSynthesisRun = {
+  id: string;
+  project_id: string;
+  author_id: string | null;
+  input_candidate_ids: string[];
+  result: SolutionSynthesis;
+  created_at: string;
+};

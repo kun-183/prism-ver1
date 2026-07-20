@@ -11,6 +11,9 @@ import type {
   ProblemNodeVote,
   ProblemSession,
   Project,
+  SolutionCandidate,
+  SolutionReference,
+  SolutionSynthesisRun,
 } from "@/lib/types";
 
 export default async function ProjectPage({
@@ -51,6 +54,9 @@ export default async function ProjectPage({
     { data: nodeVotes },
     { data: evidence },
     { data: evidenceVotes },
+    { data: solutionCandidates },
+    { data: solutionReferences },
+    { data: solutionSyntheses },
   ] = await Promise.all([
     supabase
       .from("branches")
@@ -64,6 +70,9 @@ export default async function ProjectPage({
     supabase.from("problem_node_votes").select("node_id, author_id, created_at"),
     supabase.from("problem_evidence").select("*").eq("project_id", projectId).order("created_at"),
     supabase.from("problem_evidence_votes").select("evidence_id, author_id, created_at"),
+    supabase.from("solution_candidates").select("*").eq("project_id", projectId).order("created_at"),
+    supabase.from("solution_references").select("*").eq("project_id", projectId).order("created_at"),
+    supabase.from("solution_syntheses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
   ]);
 
   const branches: Branch[] = (data ?? []).map(
@@ -89,5 +98,8 @@ export default async function ProjectPage({
     initialNodeVotes={(nodeVotes ?? []) as ProblemNodeVote[]}
     initialEvidence={(evidence ?? []) as ProblemEvidence[]}
     initialEvidenceVotes={(evidenceVotes ?? []) as ProblemEvidenceVote[]}
+    initialSolutionCandidates={(solutionCandidates ?? []) as SolutionCandidate[]}
+    initialSolutionReferences={(solutionReferences ?? []) as SolutionReference[]}
+    initialSolutionSyntheses={(solutionSyntheses ?? []) as SolutionSynthesisRun[]}
   />;
 }
