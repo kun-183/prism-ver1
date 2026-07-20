@@ -44,7 +44,7 @@ export function NewBranchForm({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <div className="rounded-2xl bg-[#f5f5f7] p-4 ring-1 ring-black/[.05]">
       <Textarea
         value={idea}
         onChange={(e) => setIdea(e.target.value)}

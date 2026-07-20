@@ -51,9 +51,9 @@ const STEPS = [
 ] as const;
 
 const ROLE_COPY = {
-  diverge: { label: "새 가지 촉발", className: "bg-violet-500/10 text-violet-700" },
-  support: { label: "가설 지지", className: "bg-emerald-500/10 text-emerald-700" },
-  challenge: { label: "가설 반증", className: "bg-amber-500/15 text-amber-800" },
+  diverge: { label: "새 가지 촉발", className: "bg-[#f0ebff] text-[#6e4bd8]" },
+  support: { label: "가설 지지", className: "bg-[#e8f2ff] text-[#0066cc]" },
+  challenge: { label: "가설 반증", className: "bg-[#fff3e8] text-[#b55300]" },
 } as const;
 
 type SessionDraft = Pick<
@@ -344,64 +344,64 @@ export function ProblemSessionWorkspace({
   const activeStage = finalDefinition ? 5 : evidence.length ? 3 : nodes.length ? 2 : 1;
 
   return (
-    <main className="min-h-full min-w-0 flex-1 overflow-x-clip bg-[#f4f1e9] text-[#172019] [overflow-wrap:anywhere]">
-      <header className="border-b border-black/10 bg-[#172019] text-white">
+    <main className="min-h-full min-w-0 flex-1 overflow-x-clip bg-[#f5f5f7] text-[#1d1d1f] [overflow-wrap:anywhere]">
+      <header className="sticky top-0 z-40 border-b border-white/80 bg-white/75 shadow-[0_1px_20px_rgba(0,0,0,.04)] backdrop-blur-2xl">
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-7">
           <div className="flex min-w-0 items-center gap-3">
-            <Link href="/" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-white hover:bg-white/10 hover:text-white" })}>
+            <Link href="/" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-[#6e6e73] hover:bg-black/[.05] hover:text-[#1d1d1f]" })}>
               <ArrowLeft className="size-4" /> 세션 목록
             </Link>
-            <div className="hidden h-5 w-px bg-white/20 sm:block" />
+            <div className="hidden h-5 w-px bg-black/10 sm:block" />
             <span className="hidden truncate text-sm font-medium sm:block">{project.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-white/55 lg:inline">{userEmail}</span>
+            <span className="hidden text-xs text-[#86868b] lg:inline">{userEmail}</span>
             <SignOutButton />
           </div>
         </div>
       </header>
 
-      <div className="overflow-x-auto border-b border-black/10 bg-[#ebe6d9]">
-        <div className="mx-auto grid min-w-[700px] w-full max-w-[1500px] grid-cols-5 px-3 sm:px-7">
+      <div className="overflow-x-auto border-b border-black/[.05] bg-white/55 backdrop-blur-xl">
+        <div className="mx-auto grid min-w-[700px] w-full max-w-[1500px] grid-cols-5 gap-2 px-3 py-2 sm:px-7">
           {STEPS.map((step) => (
-            <div key={step.id} className={`border-l border-black/10 px-2 py-3 last:border-r sm:px-4 ${step.id === activeStage ? "bg-[#d9ff57]" : step.id < activeStage ? "bg-white/40" : "opacity-55"}`}>
+            <div key={step.id} className={`rounded-xl px-3 py-2.5 sm:px-4 ${step.id === activeStage ? "bg-white text-[#0071e3] shadow-sm ring-1 ring-black/[.05]" : step.id < activeStage ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[10px]">0{step.id}</span>
                 <span className="text-xs font-semibold sm:text-sm">{step.label}</span>
               </div>
-              <p className="mt-0.5 hidden text-[11px] text-black/55 md:block">{step.detail}</p>
+              <p className="mt-0.5 hidden text-[11px] opacity-60 md:block">{step.detail}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1500px] px-4 py-7 sm:px-7 sm:py-10">
-        <section className="mb-8 grid gap-6 border-b border-black/15 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div className="mx-auto w-full max-w-[1500px] px-4 py-9 sm:px-7 sm:py-14">
+        <section className="mb-10 grid gap-7 pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[#456014]">
+            <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-[#0071e3]">
               <CircleDot className="size-4" /> Live problem definition room
             </div>
-            <h1 className="max-w-4xl text-balance text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
-              표면에서 멈추지 말고,<br /><span className="text-[#577d11]">왜의 끝</span>까지 내려갑니다.
+            <h1 className="max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+              표면에서 멈추지 말고,<br /><span className="bg-[linear-gradient(90deg,#0071e3,#7b61ff)] bg-clip-text text-transparent">왜의 끝</span>까지 내려갑니다.
             </h1>
           </div>
-          <div className="max-w-sm border-l-2 border-[#91c423] pl-4 text-sm leading-6 text-black/65">
-            <p className="font-semibold text-black">직감·판단은 인간이.</p>
+          <div className="max-w-sm rounded-2xl bg-white/75 p-4 text-sm leading-6 text-[#6e6e73] shadow-sm ring-1 ring-black/[.04]">
+            <p className="font-semibold text-[#1d1d1f]">직감·판단은 인간이.</p>
             <p>리서치·구조화·기록의 노동은 AI가 맡습니다.</p>
           </div>
         </section>
 
         {(error || notice) && (
-          <div className={`mb-6 rounded-none border-l-4 px-4 py-3 text-sm ${error ? "border-red-500 bg-red-50 text-red-800" : "border-[#80ad1a] bg-[#efffc5] text-[#355006]"}`} role={error ? "alert" : "status"}>
+          <div className={`mb-6 rounded-2xl px-4 py-3 text-sm shadow-sm ring-1 ${error ? "bg-red-50 text-red-800 ring-red-200" : "bg-[#e8f2ff] text-[#0055a8] ring-[#0071e3]/15"}`} role={error ? "alert" : "status"}>
             {error ?? notice}
           </div>
         )}
 
         <section className="mb-10 grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,.9fr)]">
-          <Card className="min-w-0 rounded-none border-black/15 bg-[#fffdf7] shadow-none">
-            <CardHeader className="border-b border-black/10">
+          <Card className="min-w-0 bg-white/90">
+            <CardHeader className="border-b border-black/[.05]">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2 text-xl"><Target className="size-5 text-[#6f9818]" /> 1. 표면 문제 포착</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl"><Target className="size-5 text-[#0071e3]" /> 1. 표면 문제 포착</CardTitle>
                 {session && <Badge variant="outline"><Check className="size-3" /> 저장됨</Badge>}
               </div>
             </CardHeader>
@@ -413,21 +413,21 @@ export function ProblemSessionWorkspace({
               </div>
               <Field label="관찰한 표면 문제" value={draft.surface_problem} onChange={(value) => setDraft({ ...draft, surface_problem: value })} placeholder="해석이나 해결책 대신 실제로 벌어진 일을 적으세요" multiline />
               <Field label="결국 잃는 것·영향" value={draft.impact} onChange={(value) => setDraft({ ...draft, impact: value })} placeholder="시간, 비용, 기회, 사람에게 생기는 결과" />
-              <div className="border-l-4 border-[#d9ff57] bg-[#172019] p-4 text-white">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Surface statement</p>
+              <div className="rounded-2xl bg-[linear-gradient(135deg,#0a84ff,#5e5ce6)] p-4 text-white shadow-[0_12px_30px_rgba(0,113,227,.2)]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Surface statement</p>
                 <p className="mt-2 text-sm font-medium leading-6">{problemStatement(draft)}</p>
               </div>
-              <Button onClick={saveSurface} disabled={savingSession || !draft.topic.trim() || !draft.surface_problem.trim()} className="bg-[#172019] text-white hover:bg-[#29372b]">
+              <Button onClick={saveSurface} disabled={savingSession || !draft.topic.trim() || !draft.surface_problem.trim()} className="bg-[#0071e3] text-white hover:bg-[#0077ed]">
                 {savingSession ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
                 표면 문제 저장
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 rounded-none border-black/15 bg-[#fffdf7] shadow-none">
-            <CardHeader className="border-b border-black/10">
-              <CardTitle className="flex items-center gap-2 text-xl"><UsersRound className="size-5 text-[#6f9818]" /> 팀의 날것 생각</CardTitle>
-              <p className="text-sm text-black/55">먼저 각자 적고, 맥락을 붙인 다음 말합니다. 모든 입력은 실시간으로 함께 보입니다.</p>
+          <Card className="min-w-0 bg-white/90">
+            <CardHeader className="border-b border-black/[.05]">
+              <CardTitle className="flex items-center gap-2 text-xl"><UsersRound className="size-5 text-[#0071e3]" /> 팀의 날것 생각</CardTitle>
+              <p className="text-sm text-[#6e6e73]">먼저 각자 적고, 맥락을 붙인 다음 말합니다. 모든 입력은 실시간으로 함께 보입니다.</p>
             </CardHeader>
             <CardContent className="pt-5">
               <NewBranchForm projectId={project.id} onCreated={(branch) => setBranches((items) => upsert(items, branch))} placeholder="아직 정리되지 않은 관찰·의심·경험을 한 줄로…" submitLabel="공용 보드에 올리기" />
@@ -443,14 +443,14 @@ export function ProblemSessionWorkspace({
           </Card>
         </section>
 
-        <section className="mb-10 border-t-2 border-black pt-6">
+        <section className="mb-12 border-t border-black/[.07] pt-8">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="font-mono text-xs text-[#577d11]">02 / DIVERGE</p>
-              <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">왜?를 MECE 가지로 펼치기</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-black/60">AI가 원인 가설을 펼치면, 사람은 본질에 가깝다고 느끼는 가지만 선택합니다. 선택되지 않은 가지를 AI가 몰래 합성하지 않습니다.</p>
+              <p className="font-mono text-xs text-[#0071e3]">02 / DIVERGE</p>
+              <h2 className="mt-1 text-3xl font-semibold tracking-[-0.035em]">왜?를 MECE 가지로 펼치기</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6e6e73]">AI가 원인 가설을 펼치면, 사람은 본질에 가깝다고 느끼는 가지만 선택합니다. 선택되지 않은 가지를 AI가 몰래 합성하지 않습니다.</p>
             </div>
-            <Button onClick={() => runAction("generate_mece")} disabled={!session?.surface_problem || busy !== null} className="bg-[#d9ff57] text-black hover:bg-[#c8ef45]">
+            <Button onClick={() => runAction("generate_mece")} disabled={!session?.surface_problem || busy !== null} className="bg-[#0071e3] text-white hover:bg-[#0077ed]">
               {busy === "generate_mece" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
               {nodes.length ? "다른 MECE 가설 펼치기" : "MECE 가설 펼치기"}
             </Button>
@@ -463,21 +463,21 @@ export function ProblemSessionWorkspace({
                 if (!depthNodes.length) return null;
                 return (
                   <div key={depth}>
-                    <div className="mb-3 flex items-center gap-3"><span className="flex size-7 items-center justify-center rounded-full bg-[#172019] font-mono text-xs text-white">{depth}</span><span className="text-sm font-bold">{depth === 1 ? "표면 문제의 원인 지도" : `왜? ${depth}단계 — 더 깊은 원인`}</span><div className="h-px flex-1 bg-black/15" /></div>
+                    <div className="mb-4 flex items-center gap-3"><span className="flex size-7 items-center justify-center rounded-full bg-[#1d1d1f] font-mono text-xs text-white">{depth}</span><span className="text-sm font-semibold">{depth === 1 ? "표면 문제의 원인 지도" : `왜? ${depth}단계 — 더 깊은 원인`}</span><div className="h-px flex-1 bg-black/[.08]" /></div>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       {depthNodes.map((node) => {
                         const selected = myNodeVotes.has(node.id);
                         const nodeEvidence = evidence.filter((item) => item.node_id === node.id);
                         return (
-                          <Card key={node.id} className={`min-w-0 rounded-none shadow-none transition-colors ${selected ? "border-[#79a814] bg-[#f5ffd9]" : "border-black/15 bg-[#fffdf7]"}`}>
-                            <CardHeader className="min-w-0 space-y-3 border-b border-black/10">
-                              <div className="flex min-w-0 flex-wrap items-start justify-between gap-2"><Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-none text-left leading-5">{node.axis}</Badge><span className="shrink-0 font-mono text-[10px] text-black/40">{node.source === "ai" ? "AI HYPOTHESIS" : "HUMAN"}</span></div>
+                          <Card key={node.id} className={`min-w-0 transition-all ${selected ? "bg-[#eef6ff] ring-2 ring-[#0071e3]/35" : "bg-white/90"}`}>
+                            <CardHeader className="min-w-0 space-y-3 border-b border-black/[.05]">
+                              <div className="flex min-w-0 flex-wrap items-start justify-between gap-2"><Badge variant="outline" className="h-auto max-w-full whitespace-normal text-left leading-5">{node.axis}</Badge><span className="shrink-0 font-mono text-[10px] text-[#86868b]">{node.source === "ai" ? "AI HYPOTHESIS" : "HUMAN"}</span></div>
                               <CardTitle className="min-w-0 break-words text-xl leading-tight">{node.label}</CardTitle>
-                              <p className="min-w-0 break-words text-sm leading-6 text-black/70">{node.statement}</p>
+                              <p className="min-w-0 break-words text-sm leading-6 text-[#6e6e73]">{node.statement}</p>
                             </CardHeader>
                             <CardContent className="space-y-4 pt-4">
-                              <div className="bg-black/[0.04] p-3 text-sm"><p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-black/45">다음 Why</p><p className="font-medium">{node.why_question}</p></div>
-                              <button onClick={() => toggleNodeVote(node.id)} className={`flex w-full min-w-0 items-center justify-between gap-2 border px-3 py-2 text-left text-sm font-semibold transition-colors ${selected ? "border-[#6f9818] bg-[#d9ff57]" : "border-black/20 hover:border-black"}`}>
+                              <div className="rounded-xl bg-[#f2f2f7] p-3 text-sm"><p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#86868b]">다음 Why</p><p className="font-medium">{node.why_question}</p></div>
+                              <button onClick={() => toggleNodeVote(node.id)} className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${selected ? "bg-[#0071e3] text-white" : "bg-[#f2f2f7] hover:bg-[#e8e8ed]"}`}>
                                 <span className="min-w-0 break-words">{selected ? "내 직감: 본질 후보로 선택됨" : "내 직감으로 본질 후보 선택"}</span><span className="flex shrink-0 items-center gap-1 font-mono text-xs"><UsersRound className="size-3.5" />{nodeVoteCounts.get(node.id) ?? 0}</span>
                               </button>
                               <div className="grid grid-cols-2 gap-2">
@@ -489,8 +489,8 @@ export function ProblemSessionWorkspace({
                                 </Button>
                               </div>
 
-                              {nodeEvidence.length > 0 && <div className="space-y-2 border-t border-black/10 pt-4">
-                                <p className="flex items-center gap-1.5 text-xs font-bold"><Database className="size-4 text-[#6f9818]" /> 가지에 붙은 근거 {nodeEvidence.length}</p>
+                              {nodeEvidence.length > 0 && <div className="space-y-2 border-t border-black/[.06] pt-4">
+                                <p className="flex items-center gap-1.5 text-xs font-bold"><Database className="size-4 text-[#0071e3]" /> 가지에 붙은 근거 {nodeEvidence.length}</p>
                                 {nodeEvidence.map((item) => (
                                   <EvidenceCard key={item.id} item={item} selected={myEvidenceVotes.has(item.id)} votes={evidenceVoteCounts.get(item.id) ?? 0} onToggle={() => toggleEvidenceVote(item.id)} />
                                 ))}
@@ -513,34 +513,34 @@ export function ProblemSessionWorkspace({
           )}
         </section>
 
-        <section className="grid gap-5 border-t-2 border-black pt-6 lg:grid-cols-[.75fr_1.25fr]">
+        <section className="grid gap-6 border-t border-black/[.07] pt-8 lg:grid-cols-[.75fr_1.25fr]">
           <div>
-            <p className="font-mono text-xs text-[#577d11]">04—05 / SYNTHESIZE → CONVERGE</p>
-            <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">팀의 판단을<br />하나의 정의로</h2>
-            <div className="mt-5 grid grid-cols-2 border border-black/15 bg-white/55 text-xs">
-              <div className="min-w-0 border-r border-black/15 p-3">
-                <p className="font-mono font-bold text-[#577d11]">01 · SYNTHESIS</p>
-                <p className="mt-1 break-words leading-5 text-black/60">선택과 근거 사이에서 N+1 문제 관점을 찾습니다.</p>
+            <p className="font-mono text-xs text-[#0071e3]">04—05 / SYNTHESIZE → CONVERGE</p>
+            <h2 className="mt-1 text-3xl font-semibold tracking-[-0.035em]">팀의 판단을<br />하나의 정의로</h2>
+            <div className="mt-5 grid grid-cols-2 overflow-hidden rounded-2xl bg-white/80 text-xs shadow-sm ring-1 ring-black/[.05]">
+              <div className="min-w-0 border-r border-black/[.06] p-3.5">
+                <p className="font-mono font-bold text-[#0071e3]">01 · SYNTHESIS</p>
+                <p className="mt-1 break-words leading-5 text-[#6e6e73]">선택과 근거 사이에서 N+1 문제 관점을 찾습니다.</p>
               </div>
               <div className="min-w-0 p-3">
-                <p className="font-mono font-bold text-[#577d11]">02 · OPUS FINAL</p>
-                <p className="mt-1 break-words leading-5 text-black/60">근거가 지지하는 해석만 최종 문서로 편집합니다.</p>
+                <p className="font-mono font-bold text-[#0071e3]">02 · OPUS FINAL</p>
+                <p className="mt-1 break-words leading-5 text-[#6e6e73]">근거가 지지하는 해석만 최종 문서로 편집합니다.</p>
               </div>
             </div>
             <div className="mt-3 space-y-2">
               {finalChecklist.map((item) => (
-                <div key={item.label} className={`border px-3 py-3 text-sm ${item.done ? "border-[#7ca718] bg-[#f3ffd3]" : item.optional ? "border-amber-300 bg-amber-50" : "border-red-300 bg-red-50"}`}>
+                <div key={item.label} className={`rounded-2xl px-3 py-3 text-sm ring-1 ${item.done ? "bg-[#eef6ff] ring-[#0071e3]/15" : item.optional ? "bg-amber-50 ring-amber-200" : "bg-red-50 ring-red-200"}`}>
                   <div className="flex min-w-0 items-start gap-2">
-                    <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${item.done ? "bg-[#6f9818] text-white" : "bg-black/10 text-black/55"}`}>{item.done ? "✓" : "!"}</span>
+                    <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${item.done ? "bg-[#0071e3] text-white" : "bg-black/[.07] text-[#6e6e73]"}`}>{item.done ? "✓" : "!"}</span>
                     <div className="min-w-0">
                       <p className="break-words font-semibold">{item.label}{item.optional ? " · 권장" : " · 필수"}</p>
-                      <p className="mt-0.5 break-words text-xs text-black/55">{item.detail}</p>
+                      <p className="mt-0.5 break-words text-xs text-[#6e6e73]">{item.detail}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <Button onClick={() => runAction("finalize")} disabled={busy !== null || !readyToFinalize} aria-busy={busy === "finalize"} className="mt-4 h-auto min-h-10 w-full whitespace-normal bg-[#172019] py-2 text-center leading-5 text-white hover:bg-[#29372b]">
+            <Button onClick={() => runAction("finalize")} disabled={busy !== null || !readyToFinalize} aria-busy={busy === "finalize"} className="mt-4 h-auto min-h-11 w-full whitespace-normal bg-[#0071e3] py-2 text-center leading-5 text-white hover:bg-[#0077ed]">
               {busy === "finalize" ? <LoaderCircle className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
               {busy === "finalize" ? "Synthesis 후 Opus 보고서 생성 중…" : <>문제정의 문서 완성하기 <ArrowRight className="size-4" /></>}
             </Button>
@@ -549,8 +549,8 @@ export function ProblemSessionWorkspace({
             {error && <p role="alert" className="mt-3 break-words border border-red-300 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">{error}</p>}
           </div>
           {finalDefinition ? <FinalDefinitionCard definition={finalDefinition} topic={session?.topic ?? project.name} /> : (
-            <div className="flex min-h-72 items-center justify-center border border-dashed border-black/25 bg-white/35 p-8 text-center">
-              <div><BookOpenCheck className="mx-auto size-9 text-black/30" /><p className="mt-3 font-semibold">아직 최종 문제정의가 없습니다.</p><p className="mt-1 text-sm text-black/50">팀의 본질 선택과 채택 근거가 모이면 이곳에 읽기 쉬운 문서가 남습니다.</p></div>
+            <div className="flex min-h-72 items-center justify-center rounded-[28px] border border-dashed border-black/15 bg-white/55 p-8 text-center">
+              <div><BookOpenCheck className="mx-auto size-9 text-[#a1a1a6]" /><p className="mt-3 font-semibold">아직 최종 문제정의가 없습니다.</p><p className="mt-1 text-sm text-[#6e6e73]">팀의 본질 선택과 채택 근거가 모이면 이곳에 읽기 쉬운 문서가 남습니다.</p></div>
             </div>
           )}
         </section>
@@ -572,65 +572,65 @@ function upsertVote<T extends { author_id: string }>(items: T[], next: T, key: k
 }
 
 function Field({ label, value, onChange, placeholder, multiline = false }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; multiline?: boolean }) {
-  return <label className="block space-y-1.5 text-sm font-semibold"><span>{label}</span>{multiline ? <Textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} rows={3} className="rounded-none bg-white" /> : <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="rounded-none bg-white" />}</label>;
+  return <label className="block space-y-1.5 text-sm font-semibold"><span>{label}</span>{multiline ? <Textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} rows={3} className="bg-[#f5f5f7]" /> : <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="bg-[#f5f5f7]" />}</label>;
 }
 
 function Empty({ copy }: { copy: string }) {
-  return <div className="border border-dashed border-black/20 bg-white/30 px-6 py-10 text-center text-sm text-black/50"><Lightbulb className="mx-auto mb-2 size-6" />{copy}</div>;
+  return <div className="rounded-2xl border border-dashed border-black/15 bg-white/45 px-6 py-10 text-center text-sm text-[#6e6e73]"><Lightbulb className="mx-auto mb-2 size-6" />{copy}</div>;
 }
 
 function EvidenceCard({ item, selected, votes, onToggle }: { item: ProblemEvidence; selected: boolean; votes: number; onToggle: () => void }) {
   const role = ROLE_COPY[item.role];
-  return <div className={`min-w-0 border p-3 text-sm ${selected ? "border-[#78a513] bg-[#f4ffd5]" : "border-black/10 bg-white"}`}>
-    <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className={`px-2 py-0.5 text-[10px] font-bold ${role.className}`}>{role.label}</span><span className="text-[10px] text-black/45">{item.source === "web" ? "AI 검색 · 실제 URL 검증" : "팀원 직접 입력"}</span></div>
+  return <div className={`min-w-0 rounded-2xl p-3 text-sm ring-1 ${selected ? "bg-[#eef6ff] ring-[#0071e3]/25" : "bg-white ring-black/[.06]"}`}>
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${role.className}`}>{role.label}</span><span className="text-[10px] text-[#86868b]">{item.source === "web" ? "AI 검색 · 실제 URL 검증" : "팀원 직접 입력"}</span></div>
     <p className="min-w-0 break-words font-semibold leading-5">{item.title}</p>
-    <p className="mt-1 text-xs text-black/50">{item.publisher}{item.data_date ? ` · ${item.data_date}` : ""}</p>
-    <p className="mt-2 min-w-0 break-words leading-5 text-black/70">{item.finding}</p>
+    <p className="mt-1 text-xs text-[#86868b]">{item.publisher}{item.data_date ? ` · ${item.data_date}` : ""}</p>
+    <p className="mt-2 min-w-0 break-words leading-5 text-[#6e6e73]">{item.finding}</p>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-      {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-xs font-semibold text-[#577d11] hover:underline">원문 확인 <ExternalLink className="size-3 shrink-0" /></a> : <span className="text-xs text-black/35">현장 자료</span>}
-      <button onClick={onToggle} className={`shrink-0 whitespace-normal border px-2 py-1 text-xs font-semibold ${selected ? "border-[#6f9818] bg-[#d9ff57]" : "border-black/15"}`}>{selected ? "근거 채택됨" : "근거 채택"} · {votes}</button>
+      {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-xs font-semibold text-[#0071e3] hover:underline">원문 확인 <ExternalLink className="size-3 shrink-0" /></a> : <span className="text-xs text-[#a1a1a6]">현장 자료</span>}
+      <button onClick={onToggle} className={`shrink-0 whitespace-normal rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${selected ? "bg-[#0071e3] text-white" : "bg-[#f2f2f7] text-[#1d1d1f]"}`}>{selected ? "근거 채택됨" : "근거 채택"} · {votes}</button>
     </div>
   </div>;
 }
 
 function ManualEvidenceForm({ value, onChange, onCancel, onSubmit, saving }: { value: { title: string; publisher: string; url: string; finding: string; data_date: string; role: ProblemEvidence["role"] }; onChange: (value: { title: string; publisher: string; url: string; finding: string; data_date: string; role: ProblemEvidence["role"] }) => void; onCancel: () => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; saving: boolean }) {
-  return <form onSubmit={onSubmit} className="space-y-2 border-t border-black/10 pt-4">
+  return <form onSubmit={onSubmit} className="space-y-2 border-t border-black/[.06] pt-4">
     <p className="text-xs font-bold">팀원이 직접 찾은 데이터</p>
-    <select aria-label="근거 역할" value={value.role} onChange={(event) => onChange({ ...value, role: event.target.value as ProblemEvidence["role"] })} className="h-9 w-full border border-black/15 bg-white px-2 text-sm"><option value="support">가설 지지</option><option value="challenge">가설 반증</option><option value="diverge">새 가지 촉발</option></select>
-    <Input aria-label="자료명" value={value.title} onChange={(event) => onChange({ ...value, title: event.target.value })} placeholder="자료명 *" className="rounded-none" />
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Input aria-label="기관 또는 출처" value={value.publisher} onChange={(event) => onChange({ ...value, publisher: event.target.value })} placeholder="기관·출처" className="min-w-0 rounded-none" /><Input aria-label="자료 기준 시점" value={value.data_date} onChange={(event) => onChange({ ...value, data_date: event.target.value })} placeholder="기준 시점" className="min-w-0 rounded-none" /></div>
-    <Input aria-label="원문 URL" type="url" value={value.url} onChange={(event) => onChange({ ...value, url: event.target.value })} placeholder="원문 URL (선택)" className="rounded-none" />
-    <Textarea aria-label="데이터가 보여주는 사실과 한계" value={value.finding} onChange={(event) => onChange({ ...value, finding: event.target.value })} placeholder="이 데이터가 보여주는 사실과 한계 *" rows={3} className="rounded-none" />
+    <select aria-label="근거 역할" value={value.role} onChange={(event) => onChange({ ...value, role: event.target.value as ProblemEvidence["role"] })} className="h-10 w-full rounded-xl border border-black/10 bg-[#f5f5f7] px-3 text-sm outline-none focus:border-[#0071e3] focus:ring-3 focus:ring-[#0071e3]/15"><option value="support">가설 지지</option><option value="challenge">가설 반증</option><option value="diverge">새 가지 촉발</option></select>
+    <Input aria-label="자료명" value={value.title} onChange={(event) => onChange({ ...value, title: event.target.value })} placeholder="자료명 *" className="bg-[#f5f5f7]" />
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Input aria-label="기관 또는 출처" value={value.publisher} onChange={(event) => onChange({ ...value, publisher: event.target.value })} placeholder="기관·출처" className="min-w-0 bg-[#f5f5f7]" /><Input aria-label="자료 기준 시점" value={value.data_date} onChange={(event) => onChange({ ...value, data_date: event.target.value })} placeholder="기준 시점" className="min-w-0 bg-[#f5f5f7]" /></div>
+    <Input aria-label="원문 URL" type="url" value={value.url} onChange={(event) => onChange({ ...value, url: event.target.value })} placeholder="원문 URL (선택)" className="bg-[#f5f5f7]" />
+    <Textarea aria-label="데이터가 보여주는 사실과 한계" value={value.finding} onChange={(event) => onChange({ ...value, finding: event.target.value })} placeholder="이 데이터가 보여주는 사실과 한계 *" rows={3} className="bg-[#f5f5f7]" />
     <div className="flex justify-end gap-2"><Button type="button" variant="ghost" size="sm" onClick={onCancel}>취소</Button><Button type="submit" size="sm" disabled={saving || !value.title.trim() || !value.finding.trim()}>{saving && <LoaderCircle className="size-4 animate-spin" />}근거 저장</Button></div>
   </form>;
 }
 
 function FinalDefinitionCard({ definition, topic }: { definition: FinalProblemDefinition; topic: string }) {
-  return <article id="final-definition" className="min-w-0 scroll-mt-6 border-2 border-[#172019] bg-[#fffdf7]">
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#172019] bg-[#d9ff57] px-5 py-3"><span className="min-w-0 break-words font-mono text-xs font-bold">FINAL PROBLEM DEFINITION</span><Badge className="shrink-0 bg-[#172019] text-white">신뢰도 {definition.confidence}</Badge></div>
+  return <article id="final-definition" className="min-w-0 scroll-mt-24 overflow-hidden rounded-[30px] bg-white shadow-[0_24px_80px_rgba(0,0,0,.1)] ring-1 ring-black/[.05]">
+    <div className="flex flex-wrap items-center justify-between gap-2 bg-[linear-gradient(90deg,#0071e3,#5e5ce6)] px-5 py-4 text-white"><span className="min-w-0 break-words font-mono text-xs font-bold">FINAL PROBLEM DEFINITION</span><Badge className="shrink-0 bg-white/18 text-white ring-1 ring-white/25">신뢰도 {definition.confidence}</Badge></div>
     <div className="min-w-0 p-5 sm:p-8">
-      <p className="break-words text-xs font-bold uppercase tracking-[0.18em] text-[#577d11]">{topic}</p>
-      <h3 className="mt-3 break-words text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">{definition.headline}</h3>
-      <blockquote className="mt-6 break-words border-l-4 border-[#d9ff57] bg-[#172019] p-5 text-lg font-semibold leading-8 text-white">{definition.statement}</blockquote>
-      {definition.synthesis && <section className="mt-6 min-w-0 border border-[#7ca718] bg-[#f3ffd3] p-4">
+      <p className="break-words text-xs font-bold uppercase tracking-[0.18em] text-[#0071e3]">{topic}</p>
+      <h3 className="mt-3 break-words text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl">{definition.headline}</h3>
+      <blockquote className="mt-6 break-words rounded-2xl bg-[#f2f2f7] p-5 text-lg font-semibold leading-8 text-[#1d1d1f]">{definition.statement}</blockquote>
+      {definition.synthesis && <section className="mt-6 min-w-0 rounded-2xl bg-[#eef6ff] p-4 ring-1 ring-[#0071e3]/15">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#46640c]"><Sparkles className="size-4" /> Synthesis 중간 재구성</p>
-          <Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-none border-[#7ca718] text-[10px]">{definition.synthesis.synthesis_possible ? "최종 정의에 검증 반영" : "도약 보류"}</Badge>
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#0066cc]"><Sparkles className="size-4" /> Synthesis 중간 재구성</p>
+          <Badge variant="outline" className="h-auto max-w-full whitespace-normal border-[#0071e3]/20 bg-white/60 text-[10px]">{definition.synthesis.synthesis_possible ? "최종 정의에 검증 반영" : "도약 보류"}</Badge>
         </div>
         {definition.synthesis.synthesis_possible && definition.synthesis.catalyst ? <div className="mt-3 min-w-0 space-y-3">
           <p className="break-words font-semibold leading-6">{definition.synthesis.catalyst.provocation}</p>
-          <p className="break-words text-sm leading-6 text-black/65">{definition.synthesis.catalyst.reframe}</p>
-          {definition.synthesis.catalyst.tensions.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-black/60">{definition.synthesis.catalyst.tensions.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</ul>}
-          <p className="break-words border-t border-[#7ca718]/35 pt-3 text-xs font-semibold leading-5 text-[#46640c]">검토 질문 · {definition.synthesis.catalyst.discussion_question}</p>
-        </div> : <p className="mt-3 break-words text-sm leading-6 text-black/65">{definition.synthesis.refusal_reason || "근거 있는 추가 재구성을 만들지 않고 선택된 판단을 유지했습니다."}</p>}
+          <p className="break-words text-sm leading-6 text-[#6e6e73]">{definition.synthesis.catalyst.reframe}</p>
+          {definition.synthesis.catalyst.tensions.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-[#6e6e73]">{definition.synthesis.catalyst.tensions.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</ul>}
+          <p className="break-words border-t border-[#0071e3]/15 pt-3 text-xs font-semibold leading-5 text-[#0066cc]">검토 질문 · {definition.synthesis.catalyst.discussion_question}</p>
+        </div> : <p className="mt-3 break-words text-sm leading-6 text-[#6e6e73]">{definition.synthesis.refusal_reason || "근거 있는 추가 재구성을 만들지 않고 선택된 판단을 유지했습니다."}</p>}
       </section>}
       <div className="mt-7 grid gap-6 sm:grid-cols-2">
-        <section><p className="text-xs font-bold uppercase tracking-wider text-black/45">선택된 본질 원인</p><p className="mt-2 font-semibold leading-6">{definition.root_cause}</p></section>
-        <section><p className="text-xs font-bold uppercase tracking-wider text-black/45">데이터가 새로 드러낸 것</p><p className="mt-2 leading-6">{definition.newly_discovered || "추가 검증 필요"}</p></section>
+        <section><p className="text-xs font-bold uppercase tracking-wider text-[#86868b]">선택된 본질 원인</p><p className="mt-2 font-semibold leading-6">{definition.root_cause}</p></section>
+        <section><p className="text-xs font-bold uppercase tracking-wider text-[#86868b]">데이터가 새로 드러낸 것</p><p className="mt-2 leading-6">{definition.newly_discovered || "추가 검증 필요"}</p></section>
       </div>
-      <section className="mt-7"><p className="text-xs font-bold uppercase tracking-wider text-black/45">표면 → 본질 Why chain</p><ol className="mt-3 space-y-2">{definition.why_chain.map((item, index) => <li key={`${item}-${index}`} className="flex min-w-0 gap-3 text-sm"><span className="shrink-0 font-mono font-bold text-[#6f9818]">0{index + 1}</span><span className="min-w-0 break-words">{item}</span></li>)}</ol></section>
-      <section className="mt-7"><p className="text-xs font-bold uppercase tracking-wider text-black/45">채택한 데이터 근거</p><ul className="mt-3 space-y-2">{definition.evidence_summary.map((item, index) => <li key={`${item}-${index}`} className="flex min-w-0 gap-2 break-words text-sm leading-6"><Database className="mt-1 size-4 shrink-0 text-[#6f9818]" />{item}</li>)}</ul></section>
-      <details className="mt-7 border-t border-black/10 pt-4"><summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">이번 정의의 경계 <ChevronDown className="size-4" /></summary><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-black/60">{definition.boundaries.map((item) => <li key={item}>{item}</li>)}</ul></details>
+      <section className="mt-7"><p className="text-xs font-bold uppercase tracking-wider text-[#86868b]">표면 → 본질 Why chain</p><ol className="mt-3 space-y-2">{definition.why_chain.map((item, index) => <li key={`${item}-${index}`} className="flex min-w-0 gap-3 text-sm"><span className="shrink-0 font-mono font-bold text-[#0071e3]">0{index + 1}</span><span className="min-w-0 break-words">{item}</span></li>)}</ol></section>
+      <section className="mt-7"><p className="text-xs font-bold uppercase tracking-wider text-[#86868b]">채택한 데이터 근거</p><ul className="mt-3 space-y-2">{definition.evidence_summary.map((item, index) => <li key={`${item}-${index}`} className="flex min-w-0 gap-2 break-words text-sm leading-6"><Database className="mt-1 size-4 shrink-0 text-[#0071e3]" />{item}</li>)}</ul></section>
+      <details className="mt-7 border-t border-black/[.06] pt-4"><summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">이번 정의의 경계 <ChevronDown className="size-4" /></summary><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#6e6e73]">{definition.boundaries.map((item) => <li key={item}>{item}</li>)}</ul></details>
     </div>
   </article>;
 }

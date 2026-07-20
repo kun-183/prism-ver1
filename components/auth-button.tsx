@@ -19,7 +19,7 @@ export function SignInButton() {
   }
 
   return (
-    <Button onClick={signIn} disabled={loading} size="lg">
+    <Button onClick={signIn} disabled={loading} size="lg" className="h-12 rounded-full bg-[#0071e3] px-6 text-white shadow-[0_10px_30px_rgba(0,113,227,.24)] hover:bg-[#0077ed]">
       {loading ? "이동 중…" : "Google로 계속하기"}
     </Button>
   );
@@ -37,7 +37,7 @@ export function SignOutButton() {
   }
 
   return (
-    <Button onClick={signOut} variant="ghost" size="sm" disabled={loading}>
+    <Button onClick={signOut} variant="ghost" size="sm" disabled={loading} className="rounded-full text-[#6e6e73] hover:bg-black/[.05] hover:text-[#1d1d1f]">
       로그아웃
     </Button>
   );

@@ -99,8 +99,8 @@ export function BranchCard({
 
   return (
     <div
-      className={`rounded-xl border bg-card p-4 shadow-sm transition-colors ${
-        selected ? "border-emerald-500 ring-1 ring-emerald-500/40" : ""
+      className={`rounded-2xl bg-white p-4 shadow-sm ring-1 transition-colors ${
+        selected ? "ring-2 ring-[#0071e3]/35" : "ring-black/[.05]"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -110,10 +110,10 @@ export function BranchCard({
             checked={selected}
             onChange={onToggleSelect}
             aria-label="이 가지를 합성에 포함"
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3]"
           />
         )}
-        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
+        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e8f2ff] text-xs font-semibold text-[#0071e3]">
           {index + 1}
         </span>
         <div className="flex-1">
@@ -130,7 +130,7 @@ export function BranchCard({
             disabled={deleting}
             aria-label="가지 삭제"
             title="가지 삭제 (잔가지 포함)"
-            className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+            className="shrink-0 rounded-full p-1.5 text-muted-foreground/60 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
           >
             🗑
           </button>
@@ -166,7 +166,7 @@ export function BranchCard({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder={selectionMode ? "잔가지 달기 (맥락·이견·보강)…" : "먼저 생각을 더 발전시키거나 근거를 덧붙이세요…"}
-          className="h-8 text-sm"
+          className="h-9 bg-[#f5f5f7] text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter") addComment();
           }}

@@ -28,6 +28,9 @@ npm run dev                  # http://localhost:3000
 | `SYNTHESIS_HIGH_MODEL` | 문제정의 전 Synthesis 재구성 모델. 기본 `claude-opus-4-8` |
 | `SYNTHESIS_RESEARCH_MODEL` | 공공데이터 웹 검색 모델. 기본 `claude-sonnet-4-6` |
 | `PROBLEM_DEFINITION_FINAL_MODEL` | 최종 문제정의 문서 생성 모델. 기본 `claude-opus-4-8` |
+| `PROJECT_ADMIN_EMAIL` | 프로젝트 이름 변경·삭제를 허용할 단일 관리자 이메일 |
+
+`PROJECT_ADMIN_EMAIL`을 바꾸는 경우에는 Supabase의 `app_admin_emails` 값도 함께 변경해야 한다. API의 이메일 확인과 DB RLS가 모두 통과해야 관리 작업이 실행된다.
 
 ---
 
@@ -46,7 +49,7 @@ npm run dev                  # http://localhost:3000
 
 ### 3. Vercel 배포
 1. GitHub 레포 연결 → import.
-2. 위 환경 변수 6개 등록 → 배포.
+2. 위 환경 변수 8개 등록 → 배포.
 3. 배포 URL을 Supabase Redirect URLs / Google 리디렉션 설정에 반영.
 
 ---
