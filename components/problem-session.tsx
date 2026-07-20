@@ -282,9 +282,10 @@ export function ProblemSessionWorkspace({
       }
       if (action === "finalize") {
         const gapCount = Array.isArray(data.quality_gaps) ? data.quality_gaps.length : 0;
-        setNotice(gapCount > 0
-          ? `문제정의 초안을 완성했습니다. 검증 과제 ${gapCount}개는 문서의 경계에 표시했습니다.`
-          : "근거가 연결된 최종 문제정의를 완성했습니다.");
+        const synthesisApplied = data.synthesis?.synthesis_possible === true;
+        setNotice(synthesisApplied
+          ? `Synthesis 재구성을 검증해 Opus 최종 문제정의를 완성했습니다.${gapCount > 0 ? ` 검증 과제 ${gapCount}개를 경계에 표시했습니다.` : ""}`
+          : `Synthesis가 무리한 도약을 보류해 선택된 자료만으로 Opus 최종 문제정의를 완성했습니다.${gapCount > 0 ? ` 검증 과제 ${gapCount}개를 표시했습니다.` : ""}`);
       }
       if (data.mece_check) setNotice(`MECE 점검: ${data.mece_check}`);
     } catch (cause) {
@@ -514,9 +515,19 @@ export function ProblemSessionWorkspace({
 
         <section className="grid gap-5 border-t-2 border-black pt-6 lg:grid-cols-[.75fr_1.25fr]">
           <div>
-            <p className="font-mono text-xs text-[#577d11]">04—05 / CONVERGE</p>
+            <p className="font-mono text-xs text-[#577d11]">04—05 / SYNTHESIZE → CONVERGE</p>
             <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">팀의 판단을<br />하나의 정의로</h2>
-            <div className="mt-5 space-y-2">
+            <div className="mt-5 grid grid-cols-2 border border-black/15 bg-white/55 text-xs">
+              <div className="min-w-0 border-r border-black/15 p-3">
+                <p className="font-mono font-bold text-[#577d11]">01 · SYNTHESIS</p>
+                <p className="mt-1 break-words leading-5 text-black/60">선택과 근거 사이에서 N+1 문제 관점을 찾습니다.</p>
+              </div>
+              <div className="min-w-0 p-3">
+                <p className="font-mono font-bold text-[#577d11]">02 · OPUS FINAL</p>
+                <p className="mt-1 break-words leading-5 text-black/60">근거가 지지하는 해석만 최종 문서로 편집합니다.</p>
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
               {finalChecklist.map((item) => (
                 <div key={item.label} className={`border px-3 py-3 text-sm ${item.done ? "border-[#7ca718] bg-[#f3ffd3]" : item.optional ? "border-amber-300 bg-amber-50" : "border-red-300 bg-red-50"}`}>
                   <div className="flex min-w-0 items-start gap-2">
@@ -529,9 +540,9 @@ export function ProblemSessionWorkspace({
                 </div>
               ))}
             </div>
-            <Button onClick={() => runAction("finalize")} disabled={busy !== null || !readyToFinalize} className="mt-4 h-auto min-h-10 w-full whitespace-normal bg-[#172019] py-2 text-center leading-5 text-white hover:bg-[#29372b]">
+            <Button onClick={() => runAction("finalize")} disabled={busy !== null || !readyToFinalize} aria-busy={busy === "finalize"} className="mt-4 h-auto min-h-10 w-full whitespace-normal bg-[#172019] py-2 text-center leading-5 text-white hover:bg-[#29372b]">
               {busy === "finalize" ? <LoaderCircle className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
-              문제정의 문서 완성하기 <ArrowRight className="size-4" />
+              {busy === "finalize" ? "Synthesis 후 Opus 보고서 생성 중…" : <>문제정의 문서 완성하기 <ArrowRight className="size-4" /></>}
             </Button>
             {!readyToFinalize && <p className="mt-2 text-xs leading-5 text-red-700">위의 빨간색 필수 항목 2개를 완료하면 버튼이 활성화됩니다.</p>}
             {readyToFinalize && (uncoveredVotedNodes.length > 0 || !hasDiscoveryEvidence) && <p className="mt-2 text-xs leading-5 text-amber-800">권장 항목이 남아 있어도 초안을 만들 수 있습니다. 부족한 근거는 문서에 검증 과제로 표시됩니다.</p>}
@@ -601,6 +612,18 @@ function FinalDefinitionCard({ definition, topic }: { definition: FinalProblemDe
       <p className="break-words text-xs font-bold uppercase tracking-[0.18em] text-[#577d11]">{topic}</p>
       <h3 className="mt-3 break-words text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">{definition.headline}</h3>
       <blockquote className="mt-6 break-words border-l-4 border-[#d9ff57] bg-[#172019] p-5 text-lg font-semibold leading-8 text-white">{definition.statement}</blockquote>
+      {definition.synthesis && <section className="mt-6 min-w-0 border border-[#7ca718] bg-[#f3ffd3] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#46640c]"><Sparkles className="size-4" /> Synthesis 중간 재구성</p>
+          <Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-none border-[#7ca718] text-[10px]">{definition.synthesis.synthesis_possible ? "최종 정의에 검증 반영" : "도약 보류"}</Badge>
+        </div>
+        {definition.synthesis.synthesis_possible && definition.synthesis.catalyst ? <div className="mt-3 min-w-0 space-y-3">
+          <p className="break-words font-semibold leading-6">{definition.synthesis.catalyst.provocation}</p>
+          <p className="break-words text-sm leading-6 text-black/65">{definition.synthesis.catalyst.reframe}</p>
+          {definition.synthesis.catalyst.tensions.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-black/60">{definition.synthesis.catalyst.tensions.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</ul>}
+          <p className="break-words border-t border-[#7ca718]/35 pt-3 text-xs font-semibold leading-5 text-[#46640c]">검토 질문 · {definition.synthesis.catalyst.discussion_question}</p>
+        </div> : <p className="mt-3 break-words text-sm leading-6 text-black/65">{definition.synthesis.refusal_reason || "근거 있는 추가 재구성을 만들지 않고 선택된 판단을 유지했습니다."}</p>}
+      </section>}
       <div className="mt-7 grid gap-6 sm:grid-cols-2">
         <section><p className="text-xs font-bold uppercase tracking-wider text-black/45">선택된 본질 원인</p><p className="mt-2 font-semibold leading-6">{definition.root_cause}</p></section>
         <section><p className="text-xs font-bold uppercase tracking-wider text-black/45">데이터가 새로 드러낸 것</p><p className="mt-2 leading-6">{definition.newly_discovered || "추가 검증 필요"}</p></section>

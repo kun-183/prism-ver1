@@ -7,6 +7,7 @@ import {
   generateMeceCandidates,
   researchProblemNode,
 } from "@/lib/problem-session-engine";
+import { synthesizeProblemDefinition } from "@/lib/synthesis-pipeline";
 import type {
   Branch,
   ProblemEvidence,
@@ -173,6 +174,18 @@ export async function POST(request: Request) {
         selectedEvidenceCount: selectedEvidence.length,
         qualityGapCount: qualityGaps.length,
       });
+      const synthesis = await synthesizeProblemDefinition({
+        anthropic,
+        session,
+        selectedNodes,
+        selectedEvidence,
+        qualityGaps,
+      });
+      console.info("[api/problem-session] finalize synthesis completed", {
+        projectId: body.projectId,
+        synthesisPossible: synthesis.synthesis_possible,
+        model: synthesis.model,
+      });
       const definition = await createFinalDefinition({
         anthropic,
         session,
@@ -180,6 +193,7 @@ export async function POST(request: Request) {
         selectedNodes,
         selectedEvidence,
         qualityGaps,
+        synthesis,
       });
       const { error } = await supabase.from("problem_sessions").update({
         stage: 5,
@@ -192,7 +206,7 @@ export async function POST(request: Request) {
         projectId: body.projectId,
         confidence: definition.confidence,
       });
-      return Response.json({ definition, quality_gaps: qualityGaps });
+      return Response.json({ definition, quality_gaps: qualityGaps, synthesis });
     }
 
     return Response.json({ error: "지원하지 않는 요청입니다." }, { status: 400 });

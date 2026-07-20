@@ -76,6 +76,19 @@ export type ProblemEvidenceVote = {
   created_at: string;
 };
 
+export type ProblemDefinitionSynthesis = {
+  synthesis_possible: boolean;
+  catalyst: {
+    provocation: string;
+    reframe: string;
+    tensions: string[];
+    discussion_question: string;
+  } | null;
+  contribution: Record<string, string[]>;
+  refusal_reason: string | null;
+  model: string;
+};
+
 export type FinalProblemDefinition = {
   headline: string;
   statement: string;
@@ -86,6 +99,7 @@ export type FinalProblemDefinition = {
   boundaries: string[];
   confidence: "높음" | "중간" | "낮음";
   completed_at: string;
+  synthesis?: ProblemDefinitionSynthesis | null;
 };
 
 export type PipelineDimension = {

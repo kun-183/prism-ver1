@@ -6,6 +6,10 @@ import type {
   DiscussionCatalyst,
   PipelineDimension,
   PipelineSynthesis,
+  ProblemDefinitionSynthesis,
+  ProblemEvidence,
+  ProblemNode,
+  ProblemSession,
 } from "@/lib/types";
 
 export type PipelineBranchInput = {
@@ -53,6 +57,9 @@ type SynthesisResponse = {
   contribution: Record<string, string[]>;
   refusal_reason?: string | null;
 };
+
+type SelectedProblemNode = ProblemNode & { vote_count: number };
+type SelectedProblemEvidence = ProblemEvidence & { vote_count: number };
 
 function extractText(message: Anthropic.Message) {
   return message.content
@@ -378,6 +385,93 @@ async function synthesizeOne({
       (hasValidCatalyst ? null : "논의를 도약시킬 만큼 구체적인 촉매 형식을 만들지 못했습니다."),
     model_tier: modelTier,
   } satisfies PipelineSynthesis;
+}
+
+export async function synthesizeProblemDefinition({
+  anthropic,
+  session,
+  selectedNodes,
+  selectedEvidence,
+  qualityGaps,
+}: {
+  anthropic: Anthropic;
+  session: ProblemSession;
+  selectedNodes: SelectedProblemNode[];
+  selectedEvidence: SelectedProblemEvidence[];
+  qualityGaps: string[];
+}): Promise<ProblemDefinitionSynthesis> {
+  const response = await callJson<SynthesisResponse>(
+    anthropic,
+    HIGH_MODEL,
+    `[문제정의 Synthesis 단계] 사람이 선택한 본질 후보와 채택 근거 사이의 긴장을 분석해 최종 보고서 전에 검토할 N+1 문제 재구성 하나를 만든다.
+선택된 본질 후보는 인간의 판단이므로 임의로 제거하거나 다른 원인으로 교체하지 않는다.
+채택 근거에 없는 사실을 만들지 말고, 재구성에 기여한 요소를 contribution의 각 요소별로 문제 후보 id 또는 근거 id에 매핑한다.
+support·challenge·diverge 역할의 차이와 후보 사이의 생산적 반대를 활용하되 단순 평균·병렬 나열·말 바꾸기를 피한다.
+해결책, 실행안, 시장조사 결론을 제안하지 않는다. 근거가 단조롭거나 긴장이 없어 새로운 도약이 정당화되지 않으면 synthesis_possible=false로 반환한다.
+- provocation: 선택된 판단을 버리지 않으면서 문제를 더 정확히 보게 하는 N+1 관점 1~2문장
+- reframe: 어떤 선택·근거가 어떻게 연결되어 이 관점이 나왔는지 2~3문장
+- tensions: 최종 정의에서 닫지 말아야 할 긴장 1~3개
+- discussion_question: 최종 정의를 검토할 때 사용할 초점 질문 1개
+출력: {"synthesis_possible":true,"catalyst":{"provocation":"","reframe":"","tensions":[""],"discussion_question":""},"contribution":{"요소":["문제 후보 또는 근거 id"]},"refusal_reason":null}`,
+    {
+      surface_problem: {
+        topic: session.topic,
+        subject: session.subject,
+        situation: session.situation,
+        problem: session.surface_problem,
+        impact: session.impact,
+      },
+      human_selected_problem_nodes: selectedNodes,
+      human_selected_evidence: selectedEvidence,
+      quality_gaps: qualityGaps,
+    },
+    { maxTokens: 2800 },
+  );
+  if (!response) throw new Error("문제정의 Synthesis 결과를 해석하지 못했습니다.");
+
+  const catalyst = response.catalyst;
+  const hasValidCatalyst = Boolean(
+    catalyst?.provocation?.trim() &&
+      catalyst.reframe?.trim() &&
+      catalyst.discussion_question?.trim() &&
+      Array.isArray(catalyst.tensions) &&
+      catalyst.tensions.some((tension) => tension.trim()),
+  );
+  const allowedContributionIds = new Set([
+    ...selectedNodes.map((node) => node.id),
+    ...selectedEvidence.map((item) => item.id),
+  ]);
+  const contribution = Object.fromEntries(
+    Object.entries(response.contribution ?? {}).flatMap(([key, ids]) => {
+      const validIds = [...new Set(Array.isArray(ids) ? ids : [])].filter((id) =>
+        allowedContributionIds.has(id),
+      );
+      return key.trim() && validIds.length > 0 ? [[key.trim(), validIds]] : [];
+    }),
+  );
+  const synthesisPossible = response.synthesis_possible === true && hasValidCatalyst;
+
+  return {
+    synthesis_possible: synthesisPossible,
+    catalyst: synthesisPossible
+      ? {
+          provocation: catalyst!.provocation.trim(),
+          reframe: catalyst!.reframe.trim(),
+          tensions: catalyst!.tensions
+            .map((tension) => tension.trim())
+            .filter(Boolean)
+            .slice(0, 3),
+          discussion_question: catalyst!.discussion_question.trim(),
+        }
+      : null,
+    contribution,
+    refusal_reason:
+      response.refusal_reason ??
+      (synthesisPossible
+        ? null
+        : "선택 자료만으로 근거 있는 N+1 재구성을 만들기 어렵습니다."),
+    model: HIGH_MODEL,
+  };
 }
 
 export async function synthesizeDrafts({
