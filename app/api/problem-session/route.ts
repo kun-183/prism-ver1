@@ -59,6 +59,10 @@ export async function POST(request: Request) {
     comments: branch.comments ?? [],
   })) as Branch[];
   const anthropic = new Anthropic();
+  console.info("[api/problem-session] action started", {
+    action: body.action,
+    projectId: body.projectId,
+  });
 
   try {
     if (body.action === "generate_mece") {
@@ -155,16 +159,28 @@ export async function POST(request: Request) {
       if (selectedEvidence.length === 0) return Response.json({ error: "팀이 데이터 근거를 하나 이상 채택해야 합니다." }, { status: 400 });
       const coveredNodeIds = new Set(selectedEvidence.map((item) => item.node_id));
       const uncoveredNodes = selectedNodes.filter((node) => !coveredNodeIds.has(node.id));
-      if (uncoveredNodes.length > 0) {
-        return Response.json({
-          error: "선택한 모든 본질 후보에 채택 근거가 하나 이상 필요합니다.",
-          detail: `근거 미확보: ${uncoveredNodes.map((node) => node.label).join(", ")}`,
-        }, { status: 400 });
-      }
-      if (!selectedEvidence.some((item) => item.role === "diverge" || item.role === "challenge")) {
-        return Response.json({ error: "새 가지를 촉발하거나 기존 가설을 반증한 데이터를 하나 이상 채택해야 합니다." }, { status: 400 });
-      }
-      const definition = await createFinalDefinition({ anthropic, session, branches, selectedNodes, selectedEvidence });
+      const qualityGaps = [
+        ...(uncoveredNodes.length > 0
+          ? [`근거가 아직 없는 본질 후보: ${uncoveredNodes.map((node) => node.label).join(", ")}`]
+          : []),
+        ...(!selectedEvidence.some((item) => item.role === "diverge" || item.role === "challenge")
+          ? ["새 문제를 발견하거나 기존 가설을 반증한 데이터가 아직 없음"]
+          : []),
+      ];
+      console.info("[api/problem-session] finalize materials ready", {
+        projectId: body.projectId,
+        selectedNodeCount: selectedNodes.length,
+        selectedEvidenceCount: selectedEvidence.length,
+        qualityGapCount: qualityGaps.length,
+      });
+      const definition = await createFinalDefinition({
+        anthropic,
+        session,
+        branches,
+        selectedNodes,
+        selectedEvidence,
+        qualityGaps,
+      });
       const { error } = await supabase.from("problem_sessions").update({
         stage: 5,
         final_definition: definition,
@@ -172,7 +188,11 @@ export async function POST(request: Request) {
         updated_at: definition.completed_at,
       }).eq("project_id", body.projectId);
       if (error) throw new Error(`최종 문제정의 저장 실패: ${error.message}`);
-      return Response.json({ definition });
+      console.info("[api/problem-session] finalize completed", {
+        projectId: body.projectId,
+        confidence: definition.confidence,
+      });
+      return Response.json({ definition, quality_gaps: qualityGaps });
     }
 
     return Response.json({ error: "지원하지 않는 요청입니다." }, { status: 400 });

@@ -262,12 +262,14 @@ export async function createFinalDefinition({
   branches,
   selectedNodes,
   selectedEvidence,
+  qualityGaps,
 }: {
   anthropic: Anthropic;
   session: ProblemSession;
   branches: Branch[];
   selectedNodes: Array<ProblemNode & { vote_count: number }>;
   selectedEvidence: Array<ProblemEvidence & { vote_count: number }>;
+  qualityGaps: string[];
 }) {
   const result = await callJson<Omit<FinalProblemDefinition, "completed_at">>(
     anthropic,
@@ -275,11 +277,13 @@ export async function createFinalDefinition({
 AI가 새 본질을 선택하지 않는다. vote_count가 있는 선택된 문제 가지와 채택 근거만 사용한다.
 문제정의는 [누가][상황][문제][영향]을 한 문장에 포함하고, 해결책·시장조사·실행안을 쓰지 않는다.
 근거가 지지하지 않는 단정은 피하고 불확실성은 명시한다. 외부인이 사전 설명 없이 이해할 수 있는 한국어로 쓴다.
+quality_gaps가 있으면 문서 생성을 거부하지 말고 confidence를 낮추고 boundaries에 검증 과제로 명시한다.
 JSON만 출력한다: {"headline":"12~28자 제목","statement":"완결된 문제정의","root_cause":"팀이 선택한 본질 원인","why_chain":["표면에서 본질까지 단계"],"evidence_summary":["기관·수치·시점이 드러나는 근거 요약"],"newly_discovered":"데이터로 새로 발견하거나 기각한 점","boundaries":["이번 정의가 다루지 않는 범위"],"confidence":"높음|중간|낮음"}`,
     {
       session: sessionContext(session, branches),
       human_selected_problem_nodes: selectedNodes,
       human_selected_evidence: selectedEvidence,
+      quality_gaps: qualityGaps,
       boundaries: [
         "시장조사와 솔루션 설계",
         "근거 없는 백지 문제 생성",
