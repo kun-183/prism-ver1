@@ -8,10 +8,84 @@ export type Comment = {
 
 export type Branch = {
   id: string;
+  project_id: string;
   author_id: string;
   idea: string;
   created_at: string;
   comments: Comment[];
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+export type ProblemSession = {
+  project_id: string;
+  topic: string;
+  subject: string;
+  situation: string;
+  surface_problem: string;
+  impact: string;
+  stage: 1 | 2 | 3 | 4 | 5;
+  final_definition: FinalProblemDefinition | null;
+  completed_at: string | null;
+  updated_at: string;
+};
+
+export type ProblemNode = {
+  id: string;
+  project_id: string;
+  parent_id: string | null;
+  author_id: string | null;
+  source: "ai" | "human";
+  depth: number;
+  axis: string;
+  label: string;
+  statement: string;
+  why_question: string;
+  rationale: string;
+  created_at: string;
+};
+
+export type ProblemNodeVote = {
+  node_id: string;
+  author_id: string;
+  created_at: string;
+};
+
+export type ProblemEvidence = {
+  id: string;
+  project_id: string;
+  node_id: string;
+  author_id: string | null;
+  source: "web" | "human";
+  role: "diverge" | "support" | "challenge";
+  title: string;
+  publisher: string;
+  url: string;
+  finding: string;
+  data_date: string;
+  created_at: string;
+};
+
+export type ProblemEvidenceVote = {
+  evidence_id: string;
+  author_id: string;
+  created_at: string;
+};
+
+export type FinalProblemDefinition = {
+  headline: string;
+  statement: string;
+  root_cause: string;
+  why_chain: string[];
+  evidence_summary: string[];
+  newly_discovered: string;
+  boundaries: string[];
+  confidence: "높음" | "중간" | "낮음";
+  completed_at: string;
 };
 
 export type PipelineDimension = {

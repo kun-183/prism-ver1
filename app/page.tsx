@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { TreeView } from "@/components/tree-view";
-import { SignInButton, SignOutButton } from "@/components/auth-button";
+import { ProjectHub } from "@/components/project-hub";
+import { SignInButton } from "@/components/auth-button";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { Branch, Comment } from "@/lib/types";
+import type { Project } from "@/lib/types";
 
 export default async function Home() {
   // 환경변수 미설정 시 친절한 설정 안내(앱 크래시 방지).
@@ -31,66 +31,57 @@ export default async function Home() {
   // 미로그인 → 랜딩
   if (!user) {
     return (
-      <main className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_70%_20%,oklch(0.93_0.06_160),transparent_35%),radial-gradient(circle_at_15%_80%,oklch(0.95_0.03_250),transparent_30%)]" />
-        <div className="w-full max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-            Discussion catalyst for teams
-          </p>
-          <h1 className="mt-4 text-balance text-4xl font-bold tracking-[-0.04em] sm:text-6xl">
-            더 좋은 결론보다,
-            <br />더 멀리 가는 논의.
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-balance text-base leading-7 text-muted-foreground sm:text-lg">
-            Synthesis는 흩어진 직감을 평균내지 않습니다. 아무도 생각하지 못한 N+1 관점을 던지고, 팀이 다시 말하게 만드는 질문으로 바꿉니다.
-          </p>
-          <div className="mx-auto mt-8 grid max-w-2xl gap-2 text-left text-sm sm:grid-cols-3">
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#f4f1e9] px-5 py-14 text-[#172019]">
+        <div className="absolute right-[-10%] top-[-20%] size-[50vw] rounded-full bg-[#d9ff57]/45 blur-3xl" />
+        <div className="relative w-full max-w-5xl">
+          <div className="mb-8 flex items-center gap-2 border-b border-black/15 pb-4 text-sm font-bold">
+            <span className="flex size-7 items-center justify-center bg-[#172019] text-xs text-white">S</span>
+            SYNTHESIS
+            <span className="ml-auto font-mono text-[10px] font-normal text-black/45">LIVE PROBLEM DEFINITION</span>
+          </div>
+          <div className="grid gap-10 lg:grid-cols-[1.25fr_.75fr] lg:items-end">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#577d11]">
+                Surface → Essence
+              </p>
+              <h1 className="mt-5 text-balance text-5xl font-black leading-[0.94] tracking-[-0.06em] sm:text-7xl lg:text-8xl">
+                회의가 끝나면,<br />문제의 <span className="text-[#6f9818]">본질</span>이<br />남아야 합니다.
+              </h1>
+            </div>
+            <div className="border-l-2 border-[#91c423] pl-5">
+              <p className="text-lg font-semibold leading-7">표면 생각을 왜?로 파고들고,<br />데이터로 검증하며,<br />팀의 직감으로 본질을 선택합니다.</p>
+              <p className="mt-4 text-sm leading-6 text-black/55">직감·판단은 인간이. 리서치·구조화·기록의 노동은 AI가 맡습니다.</p>
+              <div className="mt-6"><SignInButton /></div>
+            </div>
+          </div>
+          <div className="mt-12 grid gap-px border border-black/15 bg-black/15 text-left text-sm sm:grid-cols-4">
             {[
-              ["01", "관점을 고르고"],
-              ["02", "근거를 선별하고"],
-              ["03", "논의를 다시 연다"],
+              ["01", "표면 문제를 포착하고"],
+              ["02", "MECE로 왜를 펼치고"],
+              ["03", "가지마다 데이터를 붙이고"],
+              ["04", "본질 문제정의로 남긴다"],
             ].map(([number, label]) => (
-              <div key={number} className="rounded-xl border bg-background/75 p-3 backdrop-blur">
-                <span className="font-mono text-xs text-emerald-700">{number}</span>
-                <p className="mt-1 font-medium">{label}</p>
+              <div key={number} className="bg-[#fffdf7] p-4 sm:p-5">
+                <span className="font-mono text-xs text-[#577d11]">{number}</span>
+                <p className="mt-2 font-semibold">{label}</p>
               </div>
             ))}
-          </div>
-          <div className="mt-8">
-            <SignInButton />
           </div>
         </div>
       </main>
     );
   }
 
-  // 로그인 → 나무 뷰 데이터 로드
+  // 로그인 → 팀 프로젝트 선택
   const { data } = await supabase
-    .from("branches")
-    .select(
-      "id, author_id, idea, created_at, comments(id, branch_id, author_id, body, created_at)",
-    )
+    .from("projects")
+    .select("id, name, created_at")
     .order("created_at");
 
-  const branches: Branch[] = (data ?? []).map(
-    (b: Branch & { comments: Comment[] | null }) => ({
-      id: b.id,
-      author_id: b.author_id,
-      idea: b.idea,
-      created_at: b.created_at,
-      comments: (b.comments ?? []).sort((a, c) =>
-        a.created_at.localeCompare(c.created_at),
-      ),
-    }),
-  );
-
   return (
-    <main className="flex-1">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-end px-4 pt-3">
-        <span className="mr-2 text-xs text-muted-foreground">{user.email}</span>
-        <SignOutButton />
-      </div>
-      <TreeView initialBranches={branches} currentUserId={user.id} />
-    </main>
+    <ProjectHub
+      initialProjects={(data ?? []) as Project[]}
+      userEmail={user.email ?? "로그인 사용자"}
+    />
   );
 }

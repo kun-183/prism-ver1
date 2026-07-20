@@ -6,14 +6,16 @@ import { NewBranchForm } from "@/components/new-branch-form";
 import { BranchCard } from "@/components/branch-card";
 import { SynthesizeButton } from "@/components/synthesize-button";
 import { Button } from "@/components/ui/button";
-import type { Branch, Comment } from "@/lib/types";
+import type { Branch, Comment, Project } from "@/lib/types";
 
 export function TreeView({
   initialBranches,
   currentUserId,
+  project,
 }: {
   initialBranches: Branch[];
   currentUserId: string;
+  project: Project;
 }) {
   const [branches, setBranches] = useState<Branch[]>(initialBranches);
   // 회의 시작 시 전체 선택, 이후 개별 제외하는 흐름.
@@ -75,7 +77,12 @@ export function TreeView({
       .channel("tree-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "branches" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "branches",
+          filter: `project_id=eq.${project.id}`,
+        },
         (payload) => {
           const b = payload.new as Omit<Branch, "comments">;
           upsertBranch({ ...b, comments: [] });
@@ -90,7 +97,12 @@ export function TreeView({
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "branches" },
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "branches",
+          filter: `project_id=eq.${project.id}`,
+        },
         (payload) => {
           const old = payload.old as { id?: string };
           if (old.id) removeBranch(old.id);
@@ -109,7 +121,7 @@ export function TreeView({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [project.id]);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
@@ -117,7 +129,7 @@ export function TreeView({
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              논의가 멈춘 순간
+              {project.name}
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
               결론을 닫지 말고, 다음 각도를 여세요.
@@ -147,12 +159,16 @@ export function TreeView({
           >
             전체 해제
           </Button>
-          <SynthesizeButton branches={branches} selectedIds={Array.from(selectedIds)} />
+          <SynthesizeButton
+            branches={branches}
+            selectedIds={Array.from(selectedIds)}
+            projectId={project.id}
+          />
         </div>
       </header>
 
       <div className="mb-6">
-        <NewBranchForm onCreated={upsertBranch} />
+        <NewBranchForm onCreated={upsertBranch} projectId={project.id} />
       </div>
 
       {branches.length === 0 ? (

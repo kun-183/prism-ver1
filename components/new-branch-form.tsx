@@ -8,8 +8,14 @@ import type { Branch } from "@/lib/types";
 
 export function NewBranchForm({
   onCreated,
+  projectId,
+  placeholder = "번쩍 떠오른 직감 한 줄을 던져두세요…",
+  submitLabel = "가지 심기",
 }: {
   onCreated: (branch: Branch) => void;
+  projectId: string;
+  placeholder?: string;
+  submitLabel?: string;
 }) {
   const [idea, setIdea] = useState("");
   const [saving, setSaving] = useState(false);
@@ -24,8 +30,8 @@ export function NewBranchForm({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("branches")
-      .insert({ idea: trimmed })
-      .select("id, author_id, idea, created_at")
+      .insert({ idea: trimmed, project_id: projectId })
+      .select("id, project_id, author_id, idea, created_at")
       .single();
 
     setSaving(false);
@@ -42,7 +48,7 @@ export function NewBranchForm({
       <Textarea
         value={idea}
         onChange={(e) => setIdea(e.target.value)}
-        placeholder="번쩍 떠오른 직감 한 줄을 던져두세요…"
+        placeholder={placeholder}
         rows={2}
         className="resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
         onKeyDown={(e) => {
@@ -52,7 +58,7 @@ export function NewBranchForm({
       <div className="mt-2 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">⌘/Ctrl + Enter</span>
         <Button onClick={submit} disabled={!idea.trim() || saving} size="sm">
-          {saving ? "심는 중…" : "가지 심기"}
+          {saving ? "저장 중…" : submitLabel}
         </Button>
       </div>
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}

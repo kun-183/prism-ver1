@@ -2,9 +2,8 @@
 
 > 제품의 현재 목적·출력 형식·사용 장면은 [`PRODUCT_DEFINITION.md`](./PRODUCT_DEFINITION.md)에 정리되어 있습니다.
 
-흩어진 아이디어를 비대면·비동기로 쌓아두고, **돌려보기**를 누르면 Claude가 입력
-어느 것과도 같지 않은 **N+1번째 결론(한 문장 X)** 을 합성해주는 회의 도구.
-selection이 아니라 synthesis. AI가 합성을 대체하지 않고 증폭한다.
+대면 회의에서 팀의 날것 생각을 먼저 모으고, **표면 문제 → MECE 원인 가지 → 데이터 검증 → 인간의 직감 선택 → 본질 문제정의**로 이어주는 현장 도구.
+AI는 리서치·구조화·기록을 맡고, 사람은 본질 가지와 채택 근거를 직접 판단한다.
 
 스택: **Next.js 16 (App Router, TS) · Supabase(Postgres/Realtime/Auth) · Anthropic Claude · Tailwind + shadcn/ui · Vercel**
 
@@ -25,15 +24,15 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 동상. 신규 프로젝트는 publishable key |
 | `ANTHROPIC_API_KEY` | **서버 전용.** `NEXT_PUBLIC_` 금지 |
-| `SYNTHESIS_MODEL` | 기본 `claude-sonnet-4-6`, 필요 시 `claude-opus-4-8` |
+| `SYNTHESIS_DRAFT_MODEL` | MECE 분해·문서화 모델. 기본 `claude-haiku-4-5-20251001` |
+| `SYNTHESIS_RESEARCH_MODEL` | 공공데이터 웹 검색 모델. 기본 `claude-sonnet-4-6` |
 
 ---
 
 ## 설정 체크리스트 (아직 해야 할 외부 작업)
 
 ### 1. Supabase
-1. 프로젝트 생성 → `supabase/migrations/0001_init.sql` 을 SQL Editor에 붙여 실행
-   (테이블 3개 + RLS + Realtime publication 한 번에).
+1. 프로젝트를 만들고 이 저장소를 `supabase link`로 연결한 뒤 `supabase db push`로 `supabase/migrations/` 전체를 순서대로 적용한다.
 2. Project Settings → API 에서 URL / anon key 를 `.env.local` 에 입력.
 
 ### 2. Google OAuth
@@ -45,7 +44,7 @@ npm run dev                  # http://localhost:3000
 
 ### 3. Vercel 배포
 1. GitHub 레포 연결 → import.
-2. 위 환경 변수 4개 등록 → 배포.
+2. 위 환경 변수 5개 등록 → 배포.
 3. 배포 URL을 Supabase Redirect URLs / Google 리디렉션 설정에 반영.
 
 ---
@@ -54,17 +53,17 @@ npm run dev                  # http://localhost:3000
 
 ```
 app/
-  page.tsx                 미로그인→로그인 / 로그인→나무 뷰
+  page.tsx                 미로그인 랜딩 / 로그인 세션 허브
+  projects/[projectId]/    대면 문제정의 세션
   auth/callback/route.ts   OAuth 코드→세션 교환
-  api/synthesize/route.ts  서버 전용 합성 엔드포인트 (Claude)
+  api/problem-session/     MECE·공공데이터·최종 문서 AI 엔드포인트
 components/
-  tree-view.tsx            가지 목록 + Realtime 구독
-  branch-card.tsx          가지 1개 + 잔가지
+  problem-session.tsx      5단계 현장 워크스페이스 + Realtime 구독
+  branch-card.tsx          팀의 날것 생각 + 발전 맥락
   new-branch-form.tsx
-  synthesize-button.tsx    돌려보기 → 결과 다이얼로그
 lib/
   supabase/{client,server,middleware}.ts
-  synthesis-prompt.ts      PRD 8.1 시스템 프롬프트
+  problem-session-engine.ts MECE·웹 검색·최종 정의 엔진
 proxy.ts                   세션 갱신 (Next 16: 구 middleware)
 supabase/migrations/       DB 스키마
 ```
@@ -72,7 +71,8 @@ supabase/migrations/       DB 스키마
 ## 검증 (E2E)
 
 1. Google 로그인 → 새로고침해도 세션 유지.
-2. 두 브라우저에서 한쪽이 가지/잔가지 추가 → 다른 쪽 즉시 반영.
-3. 가지 5~8개 시드 → 돌려보기 → 한 줄 X 표시 + `synthesis_runs` 1건.
-4. 거의 동일한 직감만 → `synthesis_possible:false` + 거부 사유 표시.
-5. 로그아웃 상태로 `POST /api/synthesize` → 401.
+2. 두 브라우저에서 한쪽이 생각·맥락 추가 → 다른 쪽 즉시 반영.
+3. 표면 문제 저장 → MECE 가설 생성 → 사람이 본질 후보 선택.
+4. 가지별 공공데이터 검색 또는 직접 입력 → 출처 URL 확인 → 근거 채택.
+5. 선택한 모든 본질 후보에 근거가 있고 새 발견/반증 근거가 있을 때 최종 문서 생성·재열람.
+6. 로그아웃 상태로 `POST /api/problem-session` → 401.

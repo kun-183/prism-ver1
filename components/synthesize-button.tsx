@@ -41,9 +41,11 @@ type Phase = "pin" | "dimensions" | "combinations" | "materials" | "results";
 export function SynthesizeButton({
   branches,
   selectedIds,
+  projectId,
 }: {
   branches: Branch[];
   selectedIds: string[];
+  projectId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("pin");
@@ -86,7 +88,7 @@ export function SynthesizeButton({
     const response = await fetch("/api/synthesize", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action, pin, branchIds, ...payload }),
+      body: JSON.stringify({ action, pin, projectId, branchIds, ...payload }),
     });
     const data = await response.json();
     if (!response.ok) {

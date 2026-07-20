@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Synthesis — 논의를 도약시키는 N+1 촉매",
+  title: "Synthesis — 표면에서 본질까지",
   description:
-    "흩어진 직감에서 아무도 생각하지 못한 N+1 관점을 찾고, 팀이 다시 말하게 만드는 질문으로 바꾸는 논의 촉매.",
+    "팀의 직감과 공공데이터를 합성해, 대면 회의 안에서 근거 있는 본질 문제정의를 완성합니다.",
 };
 
 export default function RootLayout({

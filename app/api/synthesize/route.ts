@@ -27,6 +27,7 @@ type PipelineAction =
 type SynthesizeBody = {
   action?: PipelineAction;
   pin?: string;
+  projectId?: string;
   branchIds?: string[];
   dimensions?: PipelineDimension[];
   combinations?: CombinationCandidate[];
@@ -46,11 +47,13 @@ function isStringArray(value: unknown): value is string[] {
 
 async function saveResults(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
   results: PipelineSynthesis[],
 ) {
   if (results.length === 0) return results;
   const { data, error } = await supabase.from("synthesis_runs").insert(
     results.map((result) => ({
+      project_id: projectId,
       input_branch_ids: result.branch_ids,
       result: { pipeline_version: 3, ...result },
     })),
@@ -76,7 +79,11 @@ export async function POST(request: Request) {
     );
   }
   const body = (await request.json().catch(() => null)) as SynthesizeBody | null;
-  if (!body?.action || !isStringArray(body.branchIds)) {
+  if (
+    !body?.action ||
+    typeof body.projectId !== "string" ||
+    !isStringArray(body.branchIds)
+  ) {
     return Response.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   }
 
@@ -89,10 +96,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "PIN이 올바르지 않습니다." }, { status: 403 });
   }
 
+  const { data: membership } = await supabase
+    .from("project_members")
+    .select("project_id")
+    .eq("project_id", body.projectId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership) {
+    return Response.json(
+      { error: "프로젝트 입장 권한이 없습니다." },
+      { status: 403 },
+    );
+  }
+
+  const requestedBranchIds = Array.from(new Set(body.branchIds));
+
   const { data, error } = await supabase
     .from("branches")
     .select("id, idea, comments(id, body)")
-    .in("id", body.branchIds)
+    .eq("project_id", body.projectId)
+    .in("id", requestedBranchIds)
     .order("created_at");
   if (error) {
     return Response.json(
@@ -113,6 +136,12 @@ export async function POST(request: Request) {
   );
   if (branches.length === 0) {
     return Response.json({ error: "합성할 가지를 선택하세요." }, { status: 400 });
+  }
+  if (branches.length !== requestedBranchIds.length) {
+    return Response.json(
+      { error: "다른 프로젝트의 가지는 함께 합성할 수 없습니다." },
+      { status: 403 },
+    );
   }
   const anthropic = new Anthropic();
   console.info("[api/synthesize] action started", {
@@ -160,7 +189,7 @@ export async function POST(request: Request) {
         combinations,
         selectedCommentIds,
       });
-      const results = await saveResults(supabase, response.results);
+      const results = await saveResults(supabase, body.projectId, response.results);
       return Response.json({ ...response, results });
     }
     if (body.action === "upgrade_synthesis") {
@@ -178,7 +207,7 @@ export async function POST(request: Request) {
         previousX: body.previousX,
         selectedCommentIds,
       });
-      const [result] = await saveResults(supabase, [response.result]);
+      const [result] = await saveResults(supabase, body.projectId, [response.result]);
       return Response.json({ ...response, result });
     }
     return Response.json({ error: "지원하지 않는 단계입니다." }, { status: 400 });

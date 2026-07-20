@@ -26,6 +26,7 @@ export function BranchCard({
   onCommentCreated,
   onBranchDeleted,
   onCommentDeleted,
+  selectionMode = true,
 }: {
   branch: Branch;
   index: number;
@@ -35,6 +36,7 @@ export function BranchCard({
   onCommentCreated: (comment: Comment) => void;
   onBranchDeleted: (branchId: string) => void;
   onCommentDeleted: (commentId: string) => void;
+  selectionMode?: boolean;
 }) {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -102,13 +104,15 @@ export function BranchCard({
       }`}
     >
       <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggleSelect}
-          aria-label="이 가지를 합성에 포함"
-          className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
-        />
+        {selectionMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            aria-label="이 가지를 합성에 포함"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
+          />
+        )}
         <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
           {index + 1}
         </span>
@@ -161,7 +165,7 @@ export function BranchCard({
         <Input
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="잔가지 달기 (맥락·이견·보강)…"
+          placeholder={selectionMode ? "잔가지 달기 (맥락·이견·보강)…" : "먼저 생각을 더 발전시키거나 근거를 덧붙이세요…"}
           className="h-8 text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter") addComment();
