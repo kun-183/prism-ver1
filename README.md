@@ -24,8 +24,9 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 동상. 신규 프로젝트는 publishable key |
 | `ANTHROPIC_API_KEY` | **서버 전용.** `NEXT_PUBLIC_` 금지 |
-| `SYNTHESIS_DRAFT_MODEL` | MECE 분해·문서화 모델. 기본 `claude-haiku-4-5-20251001` |
+| `SYNTHESIS_DRAFT_MODEL` | MECE 분해 모델. 기본 `claude-haiku-4-5-20251001` |
 | `SYNTHESIS_RESEARCH_MODEL` | 공공데이터 웹 검색 모델. 기본 `claude-sonnet-4-6` |
+| `PROBLEM_DEFINITION_FINAL_MODEL` | 최종 문제정의 문서 생성 모델. 기본 `claude-opus-4-8` |
 
 ---
 

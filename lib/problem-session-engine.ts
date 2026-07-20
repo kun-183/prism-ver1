@@ -9,7 +9,12 @@ import type {
   ProblemSession,
 } from "@/lib/types";
 
-const MODEL = process.env.SYNTHESIS_DRAFT_MODEL ?? "claude-haiku-4-5-20251001";
+const DRAFT_MODEL =
+  process.env.SYNTHESIS_DRAFT_MODEL ?? "claude-haiku-4-5-20251001";
+const FINAL_MODEL =
+  process.env.PROBLEM_DEFINITION_FINAL_MODEL ??
+  process.env.SYNTHESIS_HIGH_MODEL ??
+  "claude-opus-4-8";
 const RESEARCH_MODEL =
   process.env.SYNTHESIS_RESEARCH_MODEL ?? "claude-sonnet-4-6";
 
@@ -61,9 +66,10 @@ async function callJson<T>(
   system: string,
   payload: unknown,
   maxTokens = 2400,
+  model = DRAFT_MODEL,
 ) {
   const response = await anthropic.messages.create({
-    model: MODEL,
+    model,
     max_tokens: maxTokens,
     system,
     messages: [{ role: "user", content: JSON.stringify(payload) }],
@@ -291,6 +297,7 @@ JSON만 출력한다: {"headline":"12~28자 제목","statement":"완결된 문�
       ],
     },
     3200,
+    FINAL_MODEL,
   );
   return {
     headline: result.headline?.trim() || "팀의 본질 문제정의",
