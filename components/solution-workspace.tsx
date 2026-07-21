@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { StageCommentPanel } from "@/components/stage-comment-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import type {
   SolutionCategory,
   SolutionReference,
   SolutionSynthesisRun,
+  StageComment,
 } from "@/lib/types";
 import { SOLUTION_CATEGORIES } from "@/lib/types";
 
@@ -50,6 +52,9 @@ export function SolutionWorkspace({
   initialCandidates,
   initialReferences,
   initialSyntheses,
+  stageComments,
+  onStageCommentCreated,
+  onStageCommentDeleted,
 }: {
   projectId: string;
   currentUserId: string;
@@ -57,6 +62,9 @@ export function SolutionWorkspace({
   initialCandidates: SolutionCandidate[];
   initialReferences: SolutionReference[];
   initialSyntheses: SolutionSynthesisRun[];
+  stageComments: StageComment[];
+  onStageCommentCreated: (comment: StageComment) => void;
+  onStageCommentDeleted: (id: string) => void;
 }) {
   const [candidates, setCandidates] = useState(initialCandidates);
   const [references, setReferences] = useState(initialReferences);
@@ -190,6 +198,19 @@ export function SolutionWorkspace({
           {error ?? notice}
         </div>
       )}
+
+      <StageCommentPanel
+        projectId={projectId}
+        currentUserId={currentUserId}
+        stage={6}
+        title="06 · 솔루션 발산 — 팀의 직감"
+        prompt="끌리는 후보, 불편한 트레이드오프, 합성에서 놓치면 안 될 현장 조건과 새로운 조합을 남겨 주세요."
+        comments={stageComments}
+        onCreated={onStageCommentCreated}
+        onDeleted={onStageCommentDeleted}
+        accent="purple"
+        className="mt-6"
+      />
 
       <div className="mt-7 grid gap-3 sm:grid-cols-3">
         <Metric label="탐색한 계열" value={`${representedCategories}/5`} done={representedCategories >= 2} />

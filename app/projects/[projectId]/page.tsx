@@ -14,6 +14,7 @@ import type {
   SolutionCandidate,
   SolutionReference,
   SolutionSynthesisRun,
+  StageComment,
 } from "@/lib/types";
 
 export default async function ProjectPage({
@@ -57,6 +58,7 @@ export default async function ProjectPage({
     { data: solutionCandidates },
     { data: solutionReferences },
     { data: solutionSyntheses },
+    { data: stageComments },
   ] = await Promise.all([
     supabase
       .from("branches")
@@ -73,6 +75,7 @@ export default async function ProjectPage({
     supabase.from("solution_candidates").select("*").eq("project_id", projectId).order("created_at"),
     supabase.from("solution_references").select("*").eq("project_id", projectId).order("created_at"),
     supabase.from("solution_syntheses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
+    supabase.from("stage_comments").select("id, project_id, stage, author_id, body, created_at").eq("project_id", projectId).order("created_at"),
   ]);
 
   const branches: Branch[] = (data ?? []).map(
@@ -101,5 +104,6 @@ export default async function ProjectPage({
     initialSolutionCandidates={(solutionCandidates ?? []) as SolutionCandidate[]}
     initialSolutionReferences={(solutionReferences ?? []) as SolutionReference[]}
     initialSolutionSyntheses={(solutionSyntheses ?? []) as SolutionSynthesisRun[]}
+    initialStageComments={(stageComments ?? []) as StageComment[]}
   />;
 }

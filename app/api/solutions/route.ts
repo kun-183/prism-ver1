@@ -45,9 +45,10 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const [{ data: membership }, { data: sessionData }] = await Promise.all([
+  const [{ data: membership }, { data: sessionData }, { data: stageCommentData }] = await Promise.all([
     supabase.from("project_members").select("project_id").eq("project_id", body.projectId).eq("user_id", user.id).maybeSingle(),
     supabase.from("problem_sessions").select("*").eq("project_id", body.projectId).maybeSingle(),
+    supabase.from("stage_comments").select("stage, body").eq("project_id", body.projectId).in("stage", [5, 6]).order("created_at"),
   ]);
   if (!membership) return Response.json({ error: "프로젝트 권한이 없습니다." }, { status: 403 });
   const session = sessionData as ProblemSession | null;
@@ -55,6 +56,9 @@ export async function POST(request: Request) {
   if (!session?.completed_at || !definition?.statement?.trim()) {
     return Response.json({ error: "본질 문제정의를 먼저 완료해야 솔루션을 펼칠 수 있습니다." }, { status: 409 });
   }
+  const humanComments = (stageCommentData ?? []).map(
+    (comment) => `[${comment.stage}단계] ${comment.body as string}`,
+  );
 
   const anthropic = new Anthropic();
   try {
@@ -65,7 +69,7 @@ export async function POST(request: Request) {
       ]);
       const votedEvidenceIds = new Set((voteData ?? []).map((vote) => vote.evidence_id));
       const adoptedEvidence = ((evidenceData ?? []) as ProblemEvidence[]).filter((item) => votedEvidenceIds.has(item.id));
-      const generated = await generateSolutionCandidates({ anthropic, definition, evidence: adoptedEvidence });
+      const generated = await generateSolutionCandidates({ anthropic, definition, evidence: adoptedEvidence, humanComments });
       const { data: candidateData, error: candidateError } = await supabase.from("solution_candidates").insert(
         generated.candidates.map((candidate) => ({
           project_id: body.projectId,
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
       let references: SolutionReference[] = [];
       let referenceWarning: string | null = null;
       try {
-        const researched = await researchSolutionReferences({ anthropic, definition, candidates });
+        const researched = await researchSolutionReferences({ anthropic, definition, candidates, humanComments });
         if (researched.length > 0) {
           const { data, error } = await supabase.from("solution_references").insert(
             researched.map((reference) => ({
@@ -108,7 +112,7 @@ export async function POST(request: Request) {
       const { data } = await supabase.from("solution_candidates").select("*").eq("project_id", body.projectId).in("id", ids);
       const candidates = (data ?? []) as SolutionCandidate[];
       if (candidates.length !== ids.length) return Response.json({ error: "후보를 찾지 못했습니다." }, { status: 404 });
-      const researched = await researchSolutionReferences({ anthropic, definition, candidates });
+      const researched = await researchSolutionReferences({ anthropic, definition, candidates, humanComments });
       if (researched.length === 0) return Response.json({ error: "검증 가능한 실제 선례를 찾지 못했습니다." }, { status: 404 });
       const { data: inserted, error } = await supabase.from("solution_references").insert(
         researched.map((reference) => ({
@@ -162,6 +166,7 @@ export async function POST(request: Request) {
         dimensions,
         combinations: [combination],
         selectedCommentIds: references.map((item) => item.id),
+        humanGuidance: humanComments,
       });
       const pipelineResult = response.results[0];
       if (!pipelineResult) throw new Error("N+1 합성 결과가 없습니다.");

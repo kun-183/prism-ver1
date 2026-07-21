@@ -26,6 +26,7 @@ import { SignOutButton } from "@/components/auth-button";
 import { NewBranchForm } from "@/components/new-branch-form";
 import { BranchCard } from "@/components/branch-card";
 import { SolutionWorkspace } from "@/components/solution-workspace";
+import { StageCommentPanel } from "@/components/stage-comment-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,9 +42,11 @@ import type {
   ProblemNodeVote,
   ProblemSession,
   Project,
+  ProcessStage,
   SolutionCandidate,
   SolutionReference,
   SolutionSynthesisRun,
+  StageComment,
 } from "@/lib/types";
 
 const STEPS = [
@@ -96,6 +99,7 @@ export function ProblemSessionWorkspace({
   initialSolutionCandidates,
   initialSolutionReferences,
   initialSolutionSyntheses,
+  initialStageComments,
 }: {
   project: Project;
   currentUserId: string;
@@ -109,6 +113,7 @@ export function ProblemSessionWorkspace({
   initialSolutionCandidates: SolutionCandidate[];
   initialSolutionReferences: SolutionReference[];
   initialSolutionSyntheses: SolutionSynthesisRun[];
+  initialStageComments: StageComment[];
 }) {
   const [session, setSession] = useState<ProblemSession | null>(initialSession);
   const [draft, setDraft] = useState<SessionDraft>(initialSession ?? EMPTY_SESSION);
@@ -117,6 +122,7 @@ export function ProblemSessionWorkspace({
   const [nodeVotes, setNodeVotes] = useState(initialNodeVotes);
   const [evidence, setEvidence] = useState(initialEvidence);
   const [evidenceVotes, setEvidenceVotes] = useState(initialEvidenceVotes);
+  const [stageComments, setStageComments] = useState(initialStageComments);
   const [savingSession, setSavingSession] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +167,13 @@ export function ProblemSessionWorkspace({
     },
     [evidenceVotes, evidence, currentUserId],
   );
+  const commentsByStage = useMemo(() => {
+    const grouped = new Map<ProcessStage, StageComment[]>();
+    stageComments.forEach((comment) => {
+      grouped.set(comment.stage, [...(grouped.get(comment.stage) ?? []), comment]);
+    });
+    return grouped;
+  }, [stageComments]);
   const maxDepth = Math.max(0, ...nodes.map((node) => node.depth));
   const votedNodeIds = new Set(nodeVoteCounts.keys());
   const votedEvidence = evidence.filter((item) => evidenceVoteCounts.has(item.id));
@@ -241,6 +254,11 @@ export function ProblemSessionWorkspace({
         setBranches((items) => upsert(items, { ...(payload.new as Omit<Branch, "comments">), comments: [] }));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments" }, (payload) => addComment(payload.new as Comment))
+      .on("postgres_changes", { event: "*", schema: "public", table: "stage_comments", filter: `project_id=eq.${project.id}` }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setStageComments((items) => items.filter((item) => item.id !== (payload.old as { id: string }).id));
+        } else setStageComments((items) => upsert(items, payload.new as StageComment));
+      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [project.id]);
@@ -352,7 +370,17 @@ export function ProblemSessionWorkspace({
   }
 
   const finalDefinition = session?.final_definition;
-  const activeStage = finalDefinition ? 6 : evidence.length ? 3 : nodes.length ? 2 : 1;
+  const activeStage = finalDefinition
+    ? 6
+    : busy === "finalize"
+      ? 5
+      : nodeVoteCounts.size > 0 || evidenceVoteCounts.size > 0
+        ? 4
+        : evidence.length
+          ? 3
+          : nodes.length
+            ? 2
+            : 1;
 
   return (
     <main className="min-h-full min-w-0 flex-1 overflow-x-clip bg-[#f5f5f7] text-[#1d1d1f] [overflow-wrap:anywhere]">
@@ -454,6 +482,18 @@ export function ProblemSessionWorkspace({
           </Card>
         </section>
 
+        <StageCommentPanel
+          projectId={project.id}
+          currentUserId={currentUserId}
+          stage={1}
+          title="01 · 표면 포착 — 팀의 직감"
+          prompt="관찰 문장에서 빠진 사실, 표현이 불편한 지점, 반드시 지켜야 할 문제 경계를 남겨 주세요."
+          comments={commentsByStage.get(1) ?? []}
+          onCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+          onDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
+          className="mb-12"
+        />
+
         <section className="mb-12 border-t border-black/[.07] pt-8">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -524,6 +564,31 @@ export function ProblemSessionWorkspace({
           )}
         </section>
 
+        <div className="mb-12 grid gap-4 lg:grid-cols-2">
+          <StageCommentPanel
+            projectId={project.id}
+            currentUserId={currentUserId}
+            stage={2}
+            title="02 · MECE 발산 — 팀의 직감"
+            prompt="분해 축의 겹침·누락, 더 깊이 파고들 원인, AI 가설과 다른 현장 감각을 남겨 주세요."
+            comments={commentsByStage.get(2) ?? []}
+            onCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+            onDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
+            disabled={nodes.length === 0}
+          />
+          <StageCommentPanel
+            projectId={project.id}
+            currentUserId={currentUserId}
+            stage={3}
+            title="03 · 데이터 검증 — 팀의 직감"
+            prompt="수치가 현장과 어긋나는 점, 반증으로 읽히는 부분, 추가로 확인할 출처와 질문을 남겨 주세요."
+            comments={commentsByStage.get(3) ?? []}
+            onCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+            onDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
+            disabled={evidence.length === 0}
+          />
+        </div>
+
         <section className="grid gap-6 border-t border-black/[.07] pt-8 lg:grid-cols-[.75fr_1.25fr]">
           <div>
             <p className="font-mono text-xs text-[#0071e3]">04—05 / SYNTHESIZE → CONVERGE</p>
@@ -551,6 +616,18 @@ export function ProblemSessionWorkspace({
                 </div>
               ))}
             </div>
+            <StageCommentPanel
+              projectId={project.id}
+              currentUserId={currentUserId}
+              stage={4}
+              title="04 · 직감 수렴 — 선택 이유"
+              prompt="왜 이 후보가 본질에 가깝다고 느끼는지, 표 수만으로 사라지면 안 될 소수 의견을 남겨 주세요."
+              comments={commentsByStage.get(4) ?? []}
+              onCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+              onDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
+              disabled={nodeVoteCounts.size === 0}
+              className="mt-4"
+            />
             <Button onClick={() => runAction("finalize")} disabled={busy !== null || !readyToFinalize} aria-busy={busy === "finalize"} className="mt-4 h-auto min-h-11 w-full whitespace-normal bg-[#0071e3] py-2 text-center leading-5 text-white hover:bg-[#0077ed]">
               {busy === "finalize" ? <LoaderCircle className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
               {busy === "finalize" ? "Synthesis 후 Opus 보고서 생성 중…" : <>문제정의 문서 완성하기 <ArrowRight className="size-4" /></>}
@@ -565,6 +642,18 @@ export function ProblemSessionWorkspace({
             </div>
           )}
         </section>
+        <StageCommentPanel
+          projectId={project.id}
+          currentUserId={currentUserId}
+          stage={5}
+          title="05 · 본질 정의 — 결론 검토"
+          prompt="최종 문장에서 동의하기 어려운 단정, 빠진 경계, 다시 정의해야 할 표현을 남겨 주세요. 코멘트 뒤 문서를 다시 생성할 수 있습니다."
+          comments={commentsByStage.get(5) ?? []}
+          onCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+          onDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
+          disabled={!finalDefinition}
+          className="mt-6"
+        />
         {finalDefinition && <SolutionWorkspace
           projectId={project.id}
           currentUserId={currentUserId}
@@ -572,6 +661,9 @@ export function ProblemSessionWorkspace({
           initialCandidates={initialSolutionCandidates}
           initialReferences={initialSolutionReferences}
           initialSyntheses={initialSolutionSyntheses}
+          stageComments={commentsByStage.get(6) ?? []}
+          onStageCommentCreated={(comment) => setStageComments((items) => upsert(items, comment))}
+          onStageCommentDeleted={(id) => setStageComments((items) => items.filter((item) => item.id !== id))}
         />}
       </div>
     </main>

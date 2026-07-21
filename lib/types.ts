@@ -21,6 +21,17 @@ export type Project = {
   created_at: string;
 };
 
+export type ProcessStage = 1 | 2 | 3 | 4 | 5 | 6;
+
+export type StageComment = {
+  id: string;
+  project_id: string;
+  stage: ProcessStage;
+  author_id: string;
+  body: string;
+  created_at: string;
+};
+
 export type ProblemSession = {
   project_id: string;
   topic: string;

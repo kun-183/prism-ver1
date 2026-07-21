@@ -43,11 +43,16 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!membership) return Response.json({ error: "프로젝트 권한이 없습니다." }, { status: 403 });
 
-  const [{ data: sessionData }, { data: branchData }] = await Promise.all([
+  const [{ data: sessionData }, { data: branchData }, { data: stageCommentData }] = await Promise.all([
     supabase.from("problem_sessions").select("*").eq("project_id", body.projectId).maybeSingle(),
     supabase
       .from("branches")
       .select("id, project_id, author_id, idea, created_at, comments(id, branch_id, author_id, body, created_at)")
+      .eq("project_id", body.projectId)
+      .order("created_at"),
+    supabase
+      .from("stage_comments")
+      .select("stage, body")
       .eq("project_id", body.projectId)
       .order("created_at"),
   ]);
@@ -59,6 +64,9 @@ export async function POST(request: Request) {
     ...branch,
     comments: branch.comments ?? [],
   })) as Branch[];
+  const humanComments = (...stages: number[]) => (stageCommentData ?? [])
+    .filter((comment) => stages.includes(comment.stage))
+    .map((comment) => `[${comment.stage}단계] ${comment.body as string}`);
   const anthropic = new Anthropic();
   console.info("[api/problem-session] action started", {
     action: body.action,
@@ -67,7 +75,7 @@ export async function POST(request: Request) {
 
   try {
     if (body.action === "generate_mece") {
-      const result = await generateMeceCandidates({ anthropic, session, branches });
+      const result = await generateMeceCandidates({ anthropic, session, branches, humanComments: humanComments(1) });
       if (result.candidates.length === 0) throw new Error("MECE 문제 가지를 만들지 못했습니다.");
       const { data, error } = await supabase.from("problem_nodes").insert(
         result.candidates.map((candidate) => ({
@@ -100,6 +108,7 @@ export async function POST(request: Request) {
         parent,
         siblings: (siblingData ?? []) as ProblemNode[],
         branches,
+        humanComments: humanComments(1, 2),
       });
       const { data, error } = await supabase.from("problem_nodes").insert(
         result.candidates.map((candidate) => ({
@@ -121,7 +130,7 @@ export async function POST(request: Request) {
       const { data } = await supabase.from("problem_nodes").select("*").eq("project_id", body.projectId).eq("id", body.nodeId).maybeSingle();
       const node = data as ProblemNode | null;
       if (!node) return Response.json({ error: "문제 가지를 찾지 못했습니다." }, { status: 404 });
-      const researched = await researchProblemNode({ anthropic, session, node });
+      const researched = await researchProblemNode({ anthropic, session, node, humanComments: humanComments(2, 3) });
       if (researched.length === 0) {
         return Response.json({ error: "검증 가능한 공식 출처를 찾지 못했습니다. 직접 근거를 추가해 주세요." }, { status: 404 });
       }
@@ -180,6 +189,7 @@ export async function POST(request: Request) {
         selectedNodes,
         selectedEvidence,
         qualityGaps,
+        humanComments: humanComments(3, 4, 5),
       });
       console.info("[api/problem-session] finalize synthesis completed", {
         projectId: body.projectId,
@@ -194,6 +204,7 @@ export async function POST(request: Request) {
         selectedEvidence,
         qualityGaps,
         synthesis,
+        humanComments: humanComments(3, 4, 5),
       });
       const { error } = await supabase.from("problem_sessions").update({
         stage: 5,
